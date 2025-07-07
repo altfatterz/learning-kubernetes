@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: details
+spec:
+  hosts:
+    - details
+  http:
+    - fault:
+        delay:
+          percentage:
+            value: 70
+          fixedDelay: 7s
+      route:
+        - destination:
+            host: details
+            subset: v1

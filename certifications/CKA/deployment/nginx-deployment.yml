@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # maxSurge: 50%
+      # 33% of 3 -> 0.99 meaning only 1 additional pod will be created
+      # 34% of 3 -> 1.02 which will be rounded to 2, meaning 2 additional pods will be created
+      maxSurge: 34%
+      # 34 of 3 -> 1.02 which will be rounded to 1, meaning max 1 current pod can be unavailable from current deployment
+      # decreasing from 3 to 2, but that would also cause that one more additional pod can be started for the new replica
+      maxUnavailable: 34%
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx

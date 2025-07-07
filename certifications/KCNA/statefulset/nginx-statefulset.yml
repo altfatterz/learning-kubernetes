@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+    - port: 80
+      name: web
+  clusterIP: None
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels:
+      app: nginx # has to match .spec.template.metadata.labels
+  serviceName: "nginx"
+  # For a StatefulSet with N replicas, when Pods are being deployed, they are created sequentially, in order from {0..N-1}.
+  # When Pods are being deleted, they are terminated in reverse order, from {N-1..0}.
+  # Before a scaling operation is applied to a Pod, all of its predecessors must be Running and Ready.
+  # Before a Pod is terminated, all of its successors must be completely shutdown.
+  replicas: 2 # by default is 1
+  # specifies the minimum number of seconds for which a newly created Pod should be running and ready without any of
+  # its containers crashing, for it to be considered available.
+  # This is used to check progression of a rollout when using a Rolling Update strategy. Default is set to 0
+  # https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#minimum-ready-seconds
+  minReadySeconds: 10 # by default is 0
+  # StatefulSet allows you to relax its ordering guarantees while preserving its uniqueness and identity guarantees via its .spec.podManagementPolicy field.
+  # OrderReady is the default
+  # Parallel - tells the StatefulSet controller to launch or terminate all Pods in parallel,
+  #  and to not wait for Pods to become Running and Ready or completely terminated prior to launching or terminating another Pod.
+  #  This option only affects the behavior for scaling operations. Updates are not affected.
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: nginx # has to match .spec.selector.matchLabels
+    spec:
+      # The practice of setting a pod.Spec.TerminationGracePeriodSeconds of 0 seconds is unsafe and strongly discouraged for StatefulSet Pods.
+      # Graceful deletion is safe and will ensure that the Pod shuts down gracefully before the kubelet deletes the name from the apiserver.
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: init
+          image: busybox:stable
+          command: ['sh', '-c', 'sleep 10'] # sleep for 10 seconds
+      containers:
+        - name: nginx
+          image: registry.k8s.io/nginx-slim:0.24
+          ports:
+            - containerPort: 80
+              name: web
+          volumeMounts:
+            - name: www
+              mountPath: /usr/share/nginx/html
+  # For each VolumeClaimTemplate entry defined in a StatefulSet, each Pod receives one PersistentVolumeClaim.
+  # Each Pod receives a single PersistentVolume with a StorageClass of custom-sc and 10 Mi of provisioned storage.
+  volumeClaimTemplates:
+    - metadata:
+        name: www
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: custom-sc
+        resources:
+          requests:
+            storage: 10Mi
