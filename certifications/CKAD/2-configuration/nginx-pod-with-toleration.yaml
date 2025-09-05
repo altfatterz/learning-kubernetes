@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod-with-toleration
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+  tolerations:
+    - key: "app"
+      value: "blue"
+      # operator: "Exists" (in which case no value should be specified)
+      operator: "Equal"
+      effect: "NoExecute"
+      # only used with NoExecute effect
+      # It means that this pod can tolerate this app=blue taint for tolerationSeconds tolerationSeconds
+      # after that time elapses the pod is evicted from the node
+      # if the tolerationSeconds is missing the pod is bound forever
+      tolerationSeconds: 10

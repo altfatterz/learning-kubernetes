@@ -496,14 +496,77 @@ Test it with jwt.io then you get:
 }
 ```
 
-
-`serviceAccountName` you can change the service account for a give pod - pod needs to be restarted
+`serviceAccountName` you can change the service account for a give pod 
+    - pod needs to be restarted
+    - if yet edit it on deployment it will be rolling deployment
 
 - If you don't want the kubelet to automatically mount a ServiceAccount's API credentials use `automountServiceAccountToken: false`
 
-
-
-
 ### Taints and Tolerations
 
+https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+
+- what pods can be scheduled on specific nodes
+- only meant for nodes accepting certain pods - does not guarantee that a certain pod will be always placed on a specific node
+- `taint` - are specified on the nodes
+- `tolerations` - are specified on the pods
+
+```bash
+# taint-effect declares what happens to the pod that DO NOT TOLERATE this taint
+# taint-effect: 
+# - NoSchedule - new pods will be not scheduled on the node unless it has a matching toleration
+# - PreferNoSchedule - the system tries to avoid scheduling on the node but not guaranteed unless it has a matching toleration
+# - NoExecute - new pods will not be scheduled and existing pods will be evicted unless it has a matching toleration
+$ kubectl taint nodes <node-name> key=value:taint-effect 
+```
+
+```bash
+$ kubectl taint node k3d-k3s-default-server-0 app=blue:NoExecute
+# check that all nodes are evicted from this node 
+$ kubect get pods -o wide
+# remove the taint
+$ kubectl taint node k3d-k3s-default-server-0 app=blue:NoExecute- 
+```
+
+Tolerations
+
+```bash
+$ kubectl apply -f nginx-pod-with-toleration.yaml
+$ kubectl taint node k3d-k3s-default-server-0 app=blue:NoExecute
+$ kubectl get pods -o wide
+# the only pod which tolerates the app=blue taint
+nginx-pod-with-toleration          1/1     Running   0          43s   10.42.0.42   k3d-k3s-default-server-0   <none>           <none>
+$ kubectl taint node k3d-k3s-default-server-0 app=blue:NoExecute-
+```
+
+Do not schedule pods on the master nodes
+
+```bash
+$ kubectl describe node controlplane | grep Taints
+Taints:             node-role.kubernetes.io/control-plane:NoSchedule
+```
+
+### Node Selectors
+
+https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+
+```bash
+$ kubectl apply -f nginx-pod-with-nodeselector.yaml
+$ kubectl get pods
+nginx-pod-with-nodeselector        0/1     Pending   0          5s
+$ kubectl label node k3d-k3s-default-server-0 size=large
+$ kubectl get pods
+nginx-pod-with-nodeselector        1/1     Running   0          72s
+```
+- If the label size=large is removed from the node, the pod is evicted from the node
+- What about use-cases like there is no support with nodeSelector -> for that we need node `nodeAffinity`
+  - `large` or `medium`
+  - `not small`
+
 ### Node Affinity
+
+- to ensure the pods are scheduled on specific nodes
+
+```bash
+$ kubectl apply -f nginx-pod-with-nodeaffinity.yaml
+```
