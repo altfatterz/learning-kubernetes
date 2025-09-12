@@ -27,7 +27,6 @@ To redirect stderr to stdout:
 
 `echo test 2>&1`
 
-
  
 ```bash
 // check if previous command failed or not
