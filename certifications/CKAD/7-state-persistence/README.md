@@ -129,10 +129,85 @@ pvc-cac626a7-4484-4c94-b4a3-ff99820fee25_default_foo-pvc
 
 ### Storage Classes
 
+https://kubernetes.io/docs/concepts/storage/storage-classes/
 
 ### StatefulSet
 
+https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/
 
+StatefulSets are valuable for applications that require one or more of the following.
+
+- Stable, unique network identifiers.
+- Stable, persistent storage.
+- Ordered, graceful deployment and scaling.
+- Ordered, automated rolling updates.
+
+- StatefulSets currently require a `Headless Service` to be responsible for the network identity of the Pods. 
+- You are responsible for creating this Service.
+
+- StatefulSets do not provide any guarantees on the termination of pods when a StatefulSet is deleted. 
+- To achieve ordered and graceful termination of the pods in the StatefulSet, it is possible to scale the StatefulSet down to 0 prior to deletion.
+
+- `Headless Service`  
+
+
+```bash
+$ kubectl apply -f mysql.yaml
+
+$ kubectl get sts
+NAME    READY   AGE     CONTAINERS   IMAGES
+mysql   3/3     6m15s   mysql        mysql
+
+$ kubectl get svc
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+kubernetes   ClusterIP   10.43.0.1    <none>        443/TCP    12m
+mysql        ClusterIP   None         <none>        3306/TCP   6m46s
+
+$ kubectl get ep
+NAME         ENDPOINTS                                         AGE
+kubernetes   172.18.0.3:6443                                   25m
+mysql        10.42.0.10:3306,10.42.0.12:3306,10.42.0.14:3306   19m
+
+$ kubectl get pods -o wide
+NAME      READY   STATUS    RESTARTS   AGE     IP           NODE                       NOMINATED NODE   READINESS GATES
+mysql-0   1/1     Running   0          6m33s   10.42.0.10   k3d-k8s-cluster-server-0   <none>           <none>
+mysql-1   1/1     Running   0          6m2s    10.42.0.12   k3d-k8s-cluster-server-0   <none>           <none>
+mysql-2   1/1     Running   0          5m57s   10.42.0.14   k3d-k8s-cluster-server-0   <none>           <none>
+
+$ kubectl run -it --rm busybox --image=busybox --restart=Never
+/ # ping -c 2 10.42.0.10
+PING 10.42.0.10 (10.42.0.10): 56 data bytes
+64 bytes from 10.42.0.10: seq=0 ttl=64 time=0.072 ms
+
+--- 10.42.0.10 ping statistics ---
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 0.072/0.072/0.072 ms
+
+# ping <pod-name>.<headless-service-name>
+# ping <pod-name>.<headless-service-name>.<namespace>.svc.cluster.local
+/ # ping -c 1 mysql-0.mysql
+PING mysql-0.mysql (10.42.0.10): 56 data bytes
+64 bytes from 10.42.0.10: seq=0 ttl=64 time=0.052 ms
+
+--- mysql-0.mysql ping statistics ---
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 0.052/0.052/0.052 ms
+```
+
+```bash
+kubectl run mysql-client --image=mysql -it --rm --restart=Never -- /bin/bash
+bash-5.1# mysql -h mysql -u root -p rootpw
+mysql> show databases
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+4 rows in set (0.008 sec)
+```
 
 
 
