@@ -2,19 +2,28 @@
 
 #### Supply Chain Security - minimize image footprint
 
-Check Trivy: https://trivy.dev/v0.19.2/getting-started/installation/
+Check `Trivy`: https://trivy.dev/dev/getting-started/
 
 ```bash
-$ brew install aquasecurity/trivy/trivy 
+$ brew install trivy 
 $ trivy image httpd
-Total: 128 (UNKNOWN: 0, LOW: 89, MEDIUM: 29, HIGH: 9, CRITICAL: 1)
+┌─────────────────────┬────────┬─────────────────┬─────────┐
+│       Target        │  Type  │ Vulnerabilities │ Secrets │
+├─────────────────────┼────────┼─────────────────┼─────────┤
+│ httpd (debian 13.1) │ debian │       77        │    -    │
+└─────────────────────┴────────┴─────────────────┴─────────┘
+
 $ trivy image httpd:alpine
-Total: 4 (UNKNOWN: 0, LOW: 0, MEDIUM: 0, HIGH: 4, CRITICAL: 0)
+┌──────────────────────────────┬────────┬─────────────────┬─────────┐
+│            Target            │  Type  │ Vulnerabilities │ Secrets │
+├──────────────────────────────┼────────┼─────────────────┼─────────┤
+│ httpd:alpine (alpine 3.22.1) │ alpine │        0        │    -    │
+└──────────────────────────────┴────────┴─────────────────┴─────────┘
 ```
 - create `slim/minimal` images
-- `Distroless` images contain only your application and its runtime dependencies. They do not contain package managers, shells or any other programs you would expect to find in a standard Linux distribution.
-
-https://github.com/GoogleContainerTools/distroless
+- `Distroless` images contain only your application and its runtime dependencies. 
+  - They do not contain package managers, shells or any other programs you would expect to find in a standard Linux distribution.
+  - https://github.com/GoogleContainerTools/distroless
 
 #### Supply Chain Security - scan images for known vulnerabilities
 
@@ -23,8 +32,8 @@ CVE: Common Vulnerabilities and Exposures - https://www.cve.org/
 
 - Reduce attack surface - less packages
 - continuously rescan images
-- K8S admission controllers can initiate scanning images before a pod gets deployed - can delay the deployment 
-- Instead use: Have your own repository with pre-scanned images ready to go
+- `K8S admission controllers` can initiate scanning images before a pod gets deployed - can delay the deployment 
+- Instead, use: Have your own repository with pre-scanned images ready to go
 - Integrate image scanning into your CI/CD pipeline
 
 ```bash
