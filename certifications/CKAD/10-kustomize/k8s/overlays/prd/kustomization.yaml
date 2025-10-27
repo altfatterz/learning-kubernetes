@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prd
+namePrefix: prd-
+resources:
+  - ../../base
+
+# https://datatracker.ietf.org/doc/html/rfc6902
+# inline
+patches:
+  - target:
+      kind: Service
+      name: nginx-service
+    patch: |-
+      - op: replace
+        path: /spec/ports/0/nodePort
+        value: 30002
+  - target:
+      kind: Deployment
+      name: nginx-deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 5
