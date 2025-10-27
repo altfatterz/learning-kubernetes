@@ -4,6 +4,9 @@
 
 Check `Trivy`: https://trivy.dev/dev/getting-started/
 
+- `Trivy`, the all in one cloud native security scanner, can be deployed as a Kubernetes Operator inside a cluster. 
+- Both, the `Trivy CLI`, and the `Trivy Operator support` CIS Kubernetes Benchmark scanning among several other features.
+
 ```bash
 $ brew install trivy 
 $ trivy image httpd
@@ -27,7 +30,7 @@ $ trivy image httpd:alpine
 
 #### Supply Chain Security - scan images for known vulnerabilities
 
-CVE: Common Vulnerabilities and Exposures - https://www.cve.org/
+CVE: `Common Vulnerabilities and Exposures` - https://www.cve.org/
 - severity rating: `None`, `Low`, `Medium`, `High`, `Critical`
 
 - Reduce attack surface - less packages
@@ -81,7 +84,7 @@ spec:
 
 #### Observability - Overview
 
-- analysing sys-calls - monitor those which are suspecious
+- analysing sys-calls - monitor those which are suspicious
 - the following tools can send notifications on different channels
 `Falco` (from Sysdig) https://sysdig.com/opensource/falco/
 `Tracee` (from Aquasec) https://www.aquasec.com/products/tracee/

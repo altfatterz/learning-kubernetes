@@ -4,10 +4,14 @@
 
 Previously was called `PodSecurityPolicy` https://kubernetes.io/docs/concepts/security/pod-security-policy/ (deprecated)
 
-Instead is we can use PSA for enforcing pod security: 
+Instead, we can use PSA for enforcing pod security: 
 `Pod Security Admission (PSA)`: https://kubernetes.io/docs/concepts/security/pod-security-admission/
 
 - is enabled by default
+
+```bash
+$ kubectl exec -n kube-system kube-apiserver-controlplane -it -- kube-apiserver -h | grep enable-admission-plugins
+```
 
 --- k3s ----------------------------------------------------------------------------------------------------------------
 K3s v1.25 and newer support Pod Security Admissions (PSAs) for controlling pod security.
@@ -20,7 +24,7 @@ More info: https://docs.k3s.io/security/hardening-guide?pod-sec=v1.25+and+Newer
 ------------------------------------------------------------------------------------------------------------------------
 
 PSA 
-  - is enabled on the namespace level
+  - is `enabled on the namespace level`
   - a namespace can have labels for all three modes, each specifying a different policy level.
   - be cautious with changing labels, as escalating policy levels can lead to existing Pods being out of compliance.
 
@@ -109,8 +113,6 @@ spec:
       readOnlyRootFilesystem: true
 ```
 
-
-
 ### Authentication https://kubernetes.io/docs/reference/access-authn-authz/authentication/
 
 Accounts (User)
@@ -139,24 +141,24 @@ kubectl create sa demo-sa
 ### Authorization https://kubernetes.io/docs/reference/access-authn-authz/authorization/
 
 `Authorization mechanisms`:
-- Node - https://kubernetes.io/docs/reference/access-authn-authz/node/
-  - when the `kubelet` call the `api-server` 
+- `Node` - https://kubernetes.io/docs/reference/access-authn-authz/node/
+  - when the `kubelet` call the `kube-apiserver` 
   - these requests are handler by the `node authorizor` and the access is granted
   - the kubelet should be part of `system:nodes` group and have a name prefixed with `system:node`
-- ABAC (Attribute-based access control) https://kubernetes.io/docs/reference/access-authn-authz/abac/
+- `ABAC` (Attribute-based access control) https://kubernetes.io/docs/reference/access-authn-authz/abac/
   - you associate a user or group of users with a set of permissions
   - create a policy file listing these for each user and pass it to `api-server` like `--authorization-policy-file=SOME_FILENAME`
-  - you must edit the policy file and restart the `api-server` -> is difficult to manage
-- RBAC https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+  - you must edit the policy file and restart the `kube-apiserver` -> is difficult to manage
+- `RBAC` https://kubernetes.io/docs/reference/access-authn-authz/rbac/
   - you associate a `user` a `role` contains the set of `rules` (which are the permissions)
-- Webhook
-  - outsource the authorization, like to `Open Policy Agent`, the `api-server` will make a call to the `OPA` to decide 
-- AlwaysAllow
+- `Webhook`
+  - outsource the authorization, like to `Open Policy Agent`, the `kube-apiserver` will make a call to the `(Open Policy Agent) OPA` to decide 
+- `AlwaysAllow`
   - allows all requests, without performing any authorization checks
-- AlwaysDeny
+- `AlwaysDeny`
   - denys all requests
 
-- The mode is set on the `api-server` using the `--authorization-mode` setting
+- The mode is set on the `kube-apiserver` using the `--authorization-mode` setting
 - If you don't specify the options is set to `AlwaysAllow` by default
 - `--authorization-mode` can have multiple values like `--authorization-mode=Node,RBAC,Webhook`
   - the request is check in order, first the `Node authorizer`, the `RBAC` and later `Webhook`
@@ -481,9 +483,16 @@ $ kubectl exec <pod-name> -- whoami
 
 ### Audit Logging https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/
 
-- Events: Audit which objects were created, who created it, when was it created, from where the event was initiated
-- Auditing is disabled by default, to enable it we need to configure an audit backend:
-  - Log backend, which writes events into the filesystem
+- Events: `Audit` which objects were created:
+  - what happened?
+  - when did it happen?
+  - who initiated it?
+  - on what did it happen?
+  - where was it observed?
+  - from where was it initiated?
+  - to where was it going?
+- `Auditing is disabled by default`, to enable it we need to configure an audit backend:
+  - `Log backend`, which writes events into the filesystem
     ```bash
       - --audit-policy-file=/etc/kubernetes/audit-policy.yaml
       - --audit-log-path=/var/log/kubernetes/audit/audit.log
@@ -494,8 +503,15 @@ $ kubectl exec <pod-name> -- whoami
       # defines the maximum number of audit log files to retain 
       - --audit-log-maxbackup=5
     ```
-  - Webhook backend, which sends events to an external HTTP API
+  - `Webhook backend`, which sends events to an external HTTP API
 - `Audit policy` defines rules about what events should be recorded and what data they should include.
+
+Each request can be recorded with an associated stage. The defined stages are:
+
+- `RequestReceived` - The stage for events generated as soon as the audit handler receives the request, and before it is delegated down the handler chain.
+- `ResponseStarted` - Once the response headers are sent, but before the response body is sent. This stage is only generated for long-running requests (e.g. watch).
+- `ResponseComplete` - The response body has been completed and no more bytes will be sent.
+- `Panic` - Events generated when a panic occurred.
 
 ```yaml
 apiVersion: audit.k8s.io/v1 # This is required.
@@ -536,11 +552,11 @@ $ kubectl get netpol
 
 - Example `ingress`: (db pods should be only accessed by api-pods in the prod namespace)
 
-```bash
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: db-policy
+  name: db-policy-ingress
   namespace: default
 spec:
   # this pod selector associates the network policy for all database pods (with `role` equal to `db` label)
@@ -562,7 +578,7 @@ spec:
       namespaceSelector:
         matchLabels:
           name: prod
-    # access from an IP, the service is not runnning in Kubernetes      
+    # access from an IP, the service is not running in Kubernetes      
     - ipBlock:
         cidr: 192.168.5.10/32            
     ports:
@@ -576,7 +592,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: db-policy
+  name: db-policy-egress
   namespace: default
 spec:
   # this pod selector associates the network policy for all database pods (with `role` equal to `db` label)

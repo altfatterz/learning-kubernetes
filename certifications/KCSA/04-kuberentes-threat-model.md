@@ -2,7 +2,7 @@
 
 #### Kubernetes Trust Boundaries and Data Flow
 
-Is a process that helps you find potential threats, understand their impact, and put measures in place to stop them.
+Is a process that helps you `find potential threats`, `understand their impact`, and `put measures in place to stop them`.
 
 Setup isolation of the system: like `frontend`, `backend` and `database` - trust boundaries
 
@@ -19,13 +19,12 @@ Setup isolation of the system: like `frontend`, `backend` and `database` - trust
 
 - `Container Boundary`
 
-`Data Flows` - mapping out the flow we can identify potential security risks at each stage and apply appropriate controls.
+- `Data Flows` - mapping out the flow we can identify potential security risks at each stage and apply appropriate controls.
 
-- `Identifying and Mitigating Threats`
+- `Identifying and Mitigating Threats` - identifying threat actors:
   - External Attackers
   - Compromised Containers
   - Malicious Users 
-
 
 - `Attack trees` (Bruce Schneider, 1999) https://www.schneier.com/academic/archives/1999/12/attack_trees.html
   - Attack trees provide `formal`, `methodical` way of `describing the security of systems`, based on varying attacks
@@ -38,12 +37,12 @@ Setup isolation of the system: like `frontend`, `backend` and `database` - trust
 
 Check the techniques: https://microsoft.github.io/Threat-Matrix-for-Kubernetes/tactics/Persistence/
 
-- Backdoor container
-- Writable hostPath mount
-- Kubernetes CronJob
-- Malicious admission controller
-- Container service account
-- Static pods
+- `Backdoor container`
+- `Writable hostPath mount`
+- `Kubernetes CronJob`
+- `Malicious admission controller`
+- `Container service account`
+- `Static pods` - https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/
 
 Attack Vectors for Persistence: 
 
@@ -56,10 +55,10 @@ https://github.com/cncf/financial-user-group/blob/main/projects/k8s-threat-model
 DoS attacks overwhelm system resources causing unresponsiveness 
 
 `Mitigations`:
-  - Set resource quotas to prevent excessive resource usage
-  - Restrict service account permissions to limit potential attacks
-  - Use Network Policies and firewalls to control access
-  - Monitor and alert on unusual activity for quick response (example `PrometheusRule` alerting for potential dos attack)
+  - `Set resource quotas` to prevent excessive resource usage
+  - `Restrict service account permissions` to limit potential attacks
+  - `Use Network Policies` and firewalls to control access
+  - `Monitor and alert on unusual activity` for quick response (example `PrometheusRule` alerting for potential dos attack)
 
 #### Malicious Code Execution
 
@@ -120,22 +119,22 @@ https://github.com/cncf/financial-user-group/blob/main/projects/k8s-threat-model
 
 https://github.com/cncf/financial-user-group/blob/main/projects/k8s-threat-model/AttackTrees/AttackerOnTheNetwork.md
 
-- Overloading Etcd port 2380 / 2379 (loss of etcd quorum) - would cause the cluster to understand its own state
+- Overloading Etcd port 2380 / 2379 (loss of etcd quorum) - would cause the cluster to not understand its own state
 - Overloading API Server port 6443 / 8080 - essential for cluster operations
 - Overloading Scheduler port (10251 / 10259) - prevents K8S assigning pods to nodes
 - Overloading Controller Manager port (10252 / 10257) - impacts scaling updates and replications, K8S cannot manage state effectively
-- Overloading k8s-proxy (10257 / 10249) - stops flow of traffic between services and pods
-- Bring K8S DNS down (port 53) - services can't find each other by name
+- Overloading k8s-proxy (10256 / 10249) - stops flow of traffic between services and pods
+- Bring K8S DNS down (port 53) - services can't find each other by name causing connectivity issues
 - Degrade the CNI overlay network - flooding it causing distributed services to fail
 
 `Mitigations`:
 - Configure firewalls to the control plane, allowing only trusted IP addresses
 - Keep node operating systems and components updated and patched
 - Use Network Policies to control traffic and prevent lateral movement 
-- Use strong authentication, multi-factor and RBAC for secure access
+- Use strong authentication, multifactor and RBAC for secure access
 - Monitor and log activities to detect and respond to threats
   ```bash
-    apiVersion: monitoring.coreos.com/v1
+  apiVersion: monitoring.coreos.com/v1
   kind: PrometheusRule
   metadata:
     name: network-alert-rules
@@ -157,7 +156,7 @@ https://github.com/cncf/financial-user-group/blob/main/projects/k8s-threat-model
 - read data from volumes
 - eavesdropping network traffic
 
-#### Privilege Escalation
+#### Privilege Escalation in Linux
 
 ```bash
 $ vi /etc/ssh/sshd_config
@@ -176,7 +175,7 @@ $ sudo apt install nginx
 
 ```bash
 # only users listed in this file can use the sudo command for privilege escalation
-# granuar level of permissions is possible
+# granular level of permissions is possible
 $ /etc/sudoers 
 # here admin is a group, mark and sarah are users
 %admin ALL=(ALL) ALL
