@@ -1,3 +1,31 @@
+### Identify the name of the Operating system installed.
+
+```bash
+$ cat /etc/os-release
+
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.5 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
+
+$ uname -a
+Linux controlplane 5.15.0-1083-gcp #92~20.04.1-Ubuntu SMP Tue Apr 29 09:12:55 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+# MacOS
+$ sw_vers
+ProductName:		macOS
+ProductVersion:		15.6.1
+BuildVersion:		24G90
+````
+
 ### Helm Fundamentals
 
 https://helm.sh/
@@ -38,9 +66,10 @@ You can search this with
 $ helm search hub redis
 ```
 
-Add additonal repository
+Add additional repository
 
 ```bash
+$ helm repo list
 $ helm repo add bitnami https://charts.bitnami.com/bitnami
 
 $ helm search repo redis
@@ -63,4 +92,7 @@ $ helm pull --untar bitnami/wordpress
 $ ls wordpress
 # modify if needed
 $ helm install release-1 ./wordpress
+
+$ helm status release-1 --show-resources
+
 ```
