@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-no-conflict-with-limitrange-cpu
+spec:
+  containers:
+    - name: demo
+      image: registry.k8s.io/pause:3.8
+      # If you set both request and limit, then that new Pod will be scheduled successfully
+      resources:
+        requests:
+          cpu: 700m
+        limits:
+          cpu: 700m

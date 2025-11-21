@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: simple-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: secure-pod
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          allow-access: "true"
+    ports:
+    - protocol: TCP
+      port: 80

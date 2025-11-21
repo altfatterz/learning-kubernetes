@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: immediate-pod
+spec:
+  nodeName: k3d-k8s-cluster-agent-0
+  containers:
+    - name: busybox
+      image: busybox
+      command: [ 'sh', '-c', 'while true; do echo Success!! >> /output/output.txt; sleep 5; done' ]
+      volumeMounts:
+        - name: immediate-pv-volume
+          mountPath: /output
+  volumes:
+    - name: immediate-pv-volume
+      persistentVolumeClaim:
+        claimName: immediate-pvc

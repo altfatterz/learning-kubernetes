@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-conflict-with-limitrange-cpu
+spec:
+  containers:
+    - name: demo
+      image: registry.k8s.io/pause:3.8
+      # the Pod "example-conflict-with-limitrange-cpu" is invalid: spec.containers[0].resources.requests:
+      # Invalid value: "700m": must be less than or equal to cpu limit of 500m
+      resources:
+        requests:
+          cpu: 700m

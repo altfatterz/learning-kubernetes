@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immediate-pvc
+  # needs this annotation otherwise:
+  # failed to provision volume with StorageClass "immediate-sc": configuration error, no node was specified
+  annotations:
+    volume.kubernetes.io/selected-node: k3d-k8s-cluster-agent-0
+spec:
+  resources:
+    requests:
+      storage: 100Mi
+  storageClassName: immediate-sc
+  accessModes:
+    - ReadWriteOnce

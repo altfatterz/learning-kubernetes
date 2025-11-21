@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-pod
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+        - /bin/sh
+        - -c
+        - touch /tmp/healthy; sleep 30; rm -f /tmp/healthy; sleep 600
+      livenessProbe:
+        # After 30 seconds, cat /tmp/healthy returns a failure code.
+        exec:
+          command:
+            - cat
+            - /tmp/healthy
+        # field tells the kubelet that it should wait 5 seconds
+        initialDelaySeconds: 5
+        # kubelet should perform a liveness probe every 5
+        periodSeconds: 5
+        # time to wait for the reply – default = 1.
+        timeoutSeconds: 1
+        # number of successful probe executions to mark the container healthy – default = 1.
+        successThreshold: 1
+        # number of failed probe executions to mark the container unhealthy – default = 3.
+        failureThreshold: 3

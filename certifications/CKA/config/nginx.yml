@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      # List of ports to expose from the container.
+      # Not specifying a port here DOES NOT prevent that port from being exposed.
+      # Any port which is listening on the default "0.0.0.0" address inside a container will be accessible from the network.
+      ports:
+        - containerPort: 80
+      volumeMounts:
+        - name: secret-volume
+          mountPath: "/etc/nginx/conf"
+        - name: config-volume
+          mountPath: "/etc/nginx"
+  volumes:
+    - name: config-volume
+      configMap:
+        name: nginx-config
+    - name: secret-volume
+      secret:
+        secretName: nginx-password

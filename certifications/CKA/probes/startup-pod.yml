@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: startup-pod
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      ports:
+        # using a named port
+        - name: http
+          containerPort: 80
+      startupProbe:
+        httpGet:
+          path: /
+          port: http
+        # allow plenty of time to startup
+        # with liveness probe we will check more frequently in order to detect faster that we have a problem
+        failureThreshold: 30
+        periodSeconds: 10
