@@ -21,33 +21,28 @@ k3d-k8s-cluster-agent-0    Ready    <none>                 42s   v1.31.4+k3s1
 k3d-k8s-cluster-agent-1    Ready    <none>                 42s   v1.31.4+k3s1
 k3d-k8s-cluster-server-0   Ready    control-plane,master   44s   v1.31.4+k3s1
 
-$ kubectl get svc -A
+$ kubectl get all --all-namespaces
 
-NAMESPACE     NAME             TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                  AGE
-default       kubernetes       ClusterIP   10.43.0.1      <none>        443/TCP                  56s
-kube-system   kube-dns         ClusterIP   10.43.0.10     <none>        53/UDP,53/TCP,9153/TCP   52s
-kube-system   metrics-server   ClusterIP   10.43.22.192   <none>        443/TCP                  52s
+NAMESPACE     NAME                                          READY   STATUS    RESTARTS   AGE
+kube-system   pod/coredns-ccb96694c-ncc7d                   1/1     Running   0          51s
+kube-system   pod/local-path-provisioner-5cf85fd84d-b8dw2   1/1     Running   0          51s
+kube-system   pod/metrics-server-5985cbc9d7-p2xzt           1/1     Running   0          51s
+
+NAMESPACE     NAME                     TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                  AGE
+default       service/kubernetes       ClusterIP   10.43.0.1      <none>        443/TCP                  57s
+kube-system   service/kube-dns         ClusterIP   10.43.0.10     <none>        53/UDP,53/TCP,9153/TCP   54s
+kube-system   service/metrics-server   ClusterIP   10.43.167.93   <none>        443/TCP                  54s
+
+NAMESPACE     NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+kube-system   deployment.apps/coredns                  1/1     1            1           54s
+kube-system   deployment.apps/local-path-provisioner   1/1     1            1           54s
+kube-system   deployment.apps/metrics-server           1/1     1            1           54s
+
+NAMESPACE     NAME                                                DESIRED   CURRENT   READY   AGE
+kube-system   replicaset.apps/coredns-ccb96694c                   1         1         1       51s
+kube-system   replicaset.apps/local-path-provisioner-5cf85fd84d   1         1         1       51s
+kube-system   replicaset.apps/metrics-server-5985cbc9d7           1         1         1       51s
 ```
-
-### Setup Dashboard
-
-```bash
-$ helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
-$ helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard
-
-# Create a ServiceAccount and ClusterRoleBinding to provide admin access to the newly created cluster.
-$ kubectl create serviceaccount admin-user
-$ kubectl create clusterrolebinding admin-user --clusterrole cluster-admin --serviceaccount=default:admin-user
-
-# To log in to your Dashboard, you need a Bearer Token. Use the following command to store the token in a variable.
-$ token=$(kubectl create token admin-user)
-$ echo $token
-
-# Access the dashboard with port-foward, Dashboard will be available at: https://localhost:8443
-$ kubectl -n default port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
-
-```
-
 
 ### kubectl proxy
 
@@ -58,7 +53,6 @@ $ kubectl proxy
 http://localhost:8001/
 ```
 
-
 ### Install Istio
 
 ```bash
@@ -67,7 +61,7 @@ $ curl -L https://istio.io/downloadIstio | sh -
 # add the downloaded istio-<version>/lib to your PATH variable 
 $ istioctl version
 Istio is not present in the cluster: no running Istio pods in namespace "istio-system"
-client version: 1.24.3
+client version: 1.28.0
 # pre-installation check by running
 $ istioctl x precheck
 ✔ No issues found when checking the cluster. Istio is safe to install or upgrade!
@@ -100,36 +94,52 @@ ____________________
 ✔ Ingress gateways installed 🛬
 ✔ Installation complete
 
-$ kubectl get pods -n istio-system
+```
 
-NAME                                    READY   STATUS    RESTARTS   AGE
-istio-egressgateway-759bd6b594-477ns    1/1     Running   0          41s
-istio-ingressgateway-58b9f85cf8-lq29h   1/1     Running   0          41s
-istiod-85949f54cd-2kcnw                 1/1     Running   0          57s
+```bash
+$ kubectl get all -A 
 
-$ kubectl get svc -n istio-system
+NAME                                       READY   STATUS    RESTARTS   AGE
+pod/istio-egressgateway-69975dcc7d-rp2vc   1/1     Running   0          32s
+pod/istio-ingressgateway-7b785cd64-lctkr   1/1     Running   0          31s
+pod/istiod-56899ffd45-vkfw6                1/1     Running   0          40s
 
-NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP                        PORT(S)                                                                      AGE
-istio-egressgateway    ClusterIP      10.43.110.133   <none>                             80/TCP,443/TCP                                                               25s
-istio-ingressgateway   LoadBalancer   10.43.20.226    172.19.0.3,172.19.0.4,172.19.0.5   15021:31171/TCP,80:30592/TCP,443:30725/TCP,31400:31600/TCP,15443:32277/TCP   25s
-istiod                 ClusterIP      10.43.231.237   <none>                             15010/TCP,15012/TCP,443/TCP,15014/TCP                                        47s
+NAME                                  TYPE           CLUSTER-IP     EXTERNAL-IP                        PORT(S)                                                                      AGE
+service/istio-egressgateway           ClusterIP      10.43.10.2     <none>                             80/TCP,443/TCP                                                               32s
+service/istio-ingressgateway          LoadBalancer   10.43.164.97   172.19.0.3,172.19.0.4,172.19.0.5   15021:31743/TCP,80:31135/TCP,443:30088/TCP,31400:32531/TCP,15443:31165/TCP   32s
+service/istiod                        ClusterIP      10.43.45.154   <none>                             15010/TCP,15012/TCP,443/TCP,15014/TCP                                        40s
+service/istiod-revision-tag-default   ClusterIP      10.43.53.224   <none>                             15010/TCP,15012/TCP,443/TCP,15014/TCP                                        19s
 
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/istio-egressgateway    1/1     1            1           32s
+deployment.apps/istio-ingressgateway   1/1     1            1           32s
+deployment.apps/istiod                 1/1     1            1           40s
+
+NAME                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/istio-egressgateway-69975dcc7d   1         1         1       32s
+replicaset.apps/istio-ingressgateway-7b785cd64   1         1         1       32s
+replicaset.apps/istiod-56899ffd45                1         1         1       40s
+```
+
+Check the new resource definitions
+
+```bash
 $ kubectl get crds | grep istio
 
-authorizationpolicies.security.istio.io    2025-02-15T12:47:43Z
-destinationrules.networking.istio.io       2025-02-15T12:47:43Z
-envoyfilters.networking.istio.io           2025-02-15T12:47:43Z
-gateways.networking.istio.io               2025-02-15T12:47:43Z
-peerauthentications.security.istio.io      2025-02-15T12:47:44Z
-proxyconfigs.networking.istio.io           2025-02-15T12:47:43Z
-requestauthentications.security.istio.io   2025-02-15T12:47:44Z
-serviceentries.networking.istio.io         2025-02-15T12:47:43Z
-sidecars.networking.istio.io               2025-02-15T12:47:43Z
-telemetries.telemetry.istio.io             2025-02-15T12:47:44Z
-virtualservices.networking.istio.io        2025-02-15T12:47:43Z
-wasmplugins.extensions.istio.io            2025-02-15T12:47:43Z
-workloadentries.networking.istio.io        2025-02-15T12:47:43Z
-workloadgroups.networking.istio.io         2025-02-15T12:47:43Z
+authorizationpolicies.security.istio.io             2025-11-23T13:26:50Z
+destinationrules.networking.istio.io                2025-11-23T13:26:50Z
+envoyfilters.networking.istio.io                    2025-11-23T13:26:50Z
+gateways.networking.istio.io                        2025-11-23T13:26:50Z
+peerauthentications.security.istio.io               2025-11-23T13:26:50Z
+proxyconfigs.networking.istio.io                    2025-11-23T13:26:50Z
+requestauthentications.security.istio.io            2025-11-23T13:26:50Z
+serviceentries.networking.istio.io                  2025-11-23T13:26:50Z
+sidecars.networking.istio.io                        2025-11-23T13:26:50Z
+telemetries.telemetry.istio.io                      2025-11-23T13:26:50Z
+virtualservices.networking.istio.io                 2025-11-23T13:26:50Z
+wasmplugins.extensions.istio.io                     2025-11-23T13:26:50Z
+workloadentries.networking.istio.io                 2025-11-23T13:26:50Z
+workloadgroups.networking.istio.io                  2025-11-23T13:26:50Z
 
 $ istioctl analyze
 Info [IST0102] (Namespace default) The namespace is not enabled for Istio injection. Run 'kubectl label namespace default istio-injection=enabled' to enable it, or 'kubectl label namespace default istio-injection=disabled' to explicitly mark it as not needing injection.
@@ -138,63 +148,73 @@ Info [IST0102] (Namespace default) The namespace is not enabled for Istio inject
 ### Install addons
 
 ```bash
-$ ls -l $ISTIO_HOME/samples/addons
+$ ls $ISTIO_HOME/samples/addons
 grafana.yaml    jaeger.yaml     kiali.yaml      loki.yaml       prometheus.yaml
+# install the addons
 $ kubectl apply -f $ISTIO_HOME/samples/addons
+# get all resources from istio-system again
+$ kubectl get all -n istio-system
+NAME                                       READY   STATUS    RESTARTS   AGE
+pod/grafana-58df5dd565-2hln6               1/1     Running   0          117s
+pod/istio-egressgateway-69975dcc7d-rp2vc   1/1     Running   0          4m38s
+pod/istio-ingressgateway-7b785cd64-lctkr   1/1     Running   0          4m37s
+pod/istiod-56899ffd45-vkfw6                1/1     Running   0          4m46s
+pod/jaeger-5f7447d5c5-wdn4c                1/1     Running   0          117s
+pod/kiali-75466ff674-hthl8                 1/1     Running   0          117s
+pod/loki-0                                 2/2     Running   0          117s
+pod/prometheus-75c969f54-45ncd             2/2     Running   0          117s
 
-$ kubectl get deploy -n istio-system
+NAME                                  TYPE           CLUSTER-IP      EXTERNAL-IP                        PORT(S)                                                                      AGE
+service/grafana                       ClusterIP      10.43.242.24    <none>                             3000/TCP                                                                     117s
+service/istio-egressgateway           ClusterIP      10.43.10.2      <none>                             80/TCP,443/TCP                                                               4m38s
+service/istio-ingressgateway          LoadBalancer   10.43.164.97    172.19.0.3,172.19.0.4,172.19.0.5   15021:31743/TCP,80:31135/TCP,443:30088/TCP,31400:32531/TCP,15443:31165/TCP   4m38s
+service/istiod                        ClusterIP      10.43.45.154    <none>                             15010/TCP,15012/TCP,443/TCP,15014/TCP                                        4m46s
+service/istiod-revision-tag-default   ClusterIP      10.43.53.224    <none>                             15010/TCP,15012/TCP,443/TCP,15014/TCP                                        4m25s
+service/jaeger-collector              ClusterIP      10.43.87.221    <none>                             14268/TCP,14250/TCP,9411/TCP,4317/TCP,4318/TCP                               117s
+service/kiali                         ClusterIP      10.43.46.244    <none>                             20001/TCP,9090/TCP                                                           117s
+service/loki                          ClusterIP      10.43.184.147   <none>                             3100/TCP,9095/TCP                                                            117s
+service/loki-headless                 ClusterIP      None            <none>                             3100/TCP                                                                     117s
+service/loki-memberlist               ClusterIP      None            <none>                             7946/TCP                                                                     117s
+service/prometheus                    ClusterIP      10.43.122.54    <none>                             9090/TCP                                                                     117s
+service/tracing                       ClusterIP      10.43.229.56    <none>                             80/TCP,16685/TCP                                                             117s
+service/zipkin                        ClusterIP      10.43.123.150   <none>                             9411/TCP                                                                     117s
 
-NAME                   READY   UP-TO-DATE   AVAILABLE   AGE
-grafana                1/1     1            1           72s
-istio-egressgateway    1/1     1            1           31m
-istio-ingressgateway   1/1     1            1           31m
-istiod                 1/1     1            1           32m
-jaeger                 1/1     1            1           72s
-kiali                  1/1     1            1           72s
-prometheus             1/1     1            1           71s
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/grafana                1/1     1            1           117s
+deployment.apps/istio-egressgateway    1/1     1            1           4m38s
+deployment.apps/istio-ingressgateway   1/1     1            1           4m38s
+deployment.apps/istiod                 1/1     1            1           4m46s
+deployment.apps/jaeger                 1/1     1            1           117s
+deployment.apps/kiali                  1/1     1            1           117s
+deployment.apps/prometheus             1/1     1            1           117s
 
-$ kubectl rollout status deploy/kiali -n istio-system
-deployment "kiali" successfully rolled out
+NAME                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/grafana-58df5dd565               1         1         1       117s
+replicaset.apps/istio-egressgateway-69975dcc7d   1         1         1       4m38s
+replicaset.apps/istio-ingressgateway-7b785cd64   1         1         1       4m38s
+replicaset.apps/istiod-56899ffd45                1         1         1       4m46s
+replicaset.apps/jaeger-5f7447d5c5                1         1         1       117s
+replicaset.apps/kiali-75466ff674                 1         1         1       117s
+replicaset.apps/prometheus-75c969f54             1         1         1       117s
 
-$ kubectl get svc -n istio-system
+NAME                    READY   AGE
+statefulset.apps/loki   1/1     117s
+```
 
-NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP                        PORT(S)                                                                      AGE
-grafana                ClusterIP      10.43.218.74    <none>                             3000/TCP                                                                     2m9s
-istio-egressgateway    ClusterIP      10.43.208.83    <none>                             80/TCP,443/TCP                                                               42m
-istio-ingressgateway   LoadBalancer   10.43.65.211    172.18.0.3,172.18.0.4,172.18.0.5   15021:32260/TCP,80:31385/TCP,443:31178/TCP,31400:30788/TCP,15443:30937/TCP   42m
-istiod                 ClusterIP      10.43.139.202   <none>                             15010/TCP,15012/TCP,443/TCP,15014/TCP                                        43m
-jaeger-collector       ClusterIP      10.43.88.252    <none>                             14268/TCP,14250/TCP,9411/TCP,4317/TCP,4318/TCP                               2m9s
-kiali                  ClusterIP      10.43.156.78    <none>                             20001/TCP,9090/TCP                                                           2m9s
-loki                   ClusterIP      10.43.58.191    <none>                             3100/TCP,9095/TCP                                                            2m8s
-loki-headless          ClusterIP      None            <none>                             3100/TCP                                                                     2m8s
-loki-memberlist        ClusterIP      None            <none>                             7946/TCP                                                                     2m8s
-prometheus             ClusterIP      10.43.79.185    <none>                             9090/TCP                                                                     2m8s
-tracing                ClusterIP      10.43.201.157   <none>                             80/TCP,16685/TCP                                                             2m9s
-zipkin                 ClusterIP      10.43.90.228    <none>                             9411/TCP                                                                     2m9s
+View the used containers
 
-$ kubectl get pods -n istio-system
-
-NAME                                    READY   STATUS    RESTARTS   AGE
-grafana-6b45c49476-6g5f8                1/1     Running   0          107s
-istio-egressgateway-759bd6b594-lxtdf    1/1     Running   0          4m29s
-istio-ingressgateway-58b9f85cf8-4pq6d   1/1     Running   0          4m29s
-istiod-85949f54cd-4t8kk                 1/1     Running   0          4m51s
-jaeger-54c44d879f-8ggnq                 1/1     Running   0          107s
-kiali-79b6d98d5d-nmg2l                  1/1     Running   0          107s
-loki-0                                  2/2     Running   0          106s
-prometheus-6dd9fd5446-76jfq             2/2     Running   0          106s
-
+```bash
 # view the containers
 $ kubectl get pods -n istio-system -o jsonpath='{range .items[*]}{"\n"}{.metadata.name}{":\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'  | sort
 
-grafana-6b45c49476-fhp24:	docker.io/grafana/grafana:11.2.2-security-01,
-istio-egressgateway-759bd6b594-7q8x5:	docker.io/istio/proxyv2:1.24.3,
-istio-ingressgateway-58b9f85cf8-5bcnm:	docker.io/istio/proxyv2:1.24.3,
-istiod-85949f54cd-mmfl4:	docker.io/istio/pilot:1.24.3,
-jaeger-54c44d879f-pnshq:	docker.io/jaegertracing/all-in-one:1.58,
-kiali-79b6d98d5d-tbrfk:	quay.io/kiali/kiali:v2.0,
-loki-0:	kiwigrid/k8s-sidecar:1.27.5, docker.io/grafana/loki:3.2.0,
-prometheus-6dd9fd5446-58kh6:	ghcr.io/prometheus-operator/prometheus-config-reloader:v0.76.0, prom/prometheus:v2.54.1,
+grafana-58df5dd565-2hln6:	docker.io/grafana/grafana:12.0.1,
+istio-egressgateway-69975dcc7d-rp2vc:	docker.io/istio/proxyv2:1.28.0,
+istio-ingressgateway-7b785cd64-lctkr:	docker.io/istio/proxyv2:1.28.0,
+istiod-56899ffd45-vkfw6:	docker.io/istio/pilot:1.28.0,
+jaeger-5f7447d5c5-wdn4c:	docker.io/jaegertracing/all-in-one:1.70.0,
+kiali-75466ff674-hthl8:	quay.io/kiali/kiali:v2.17,
+loki-0:	docker.io/grafana/loki:3.5.5, docker.io/kiwigrid/k8s-sidecar:1.30.10,
+prometheus-75c969f54-45ncd:	ghcr.io/prometheus-operator/prometheus-config-reloader:v0.85.0, prom/prometheus:v3.5.0
 
 # view the Kiali dashboard
 $ istioctl dashboard kiali
@@ -203,12 +223,11 @@ $ istioctl dashboard kiali
 ### Install bookinfo
 
 ```bash
+# enable the default namespace for for Istio injection
 $ kubectl label namespace default istio-injection=enabled
-
+# deploy the bookinfo application
 $ kubectl apply -f $ISTIO_HOME/samples/bookinfo/platform/kube/bookinfo.yaml  
-
 $ kubectl get pods
-
 details-v1-79dfbd6fff-665xs      2/2     Running   0          18s
 productpage-v1-dffc47f64-2wcmv   2/2     Running   0          18s
 ratings-v1-65f797b499-k5vmf      2/2     Running   0          18s
@@ -222,16 +241,15 @@ reviews-v3-f68f94645-x8pz4       2/2     Running   0          18s
 ``` 
 $ istioctl proxy-status
 
-NAME                                                   CLUSTER        CDS                LDS                EDS                RDS                ECDS        ISTIOD                      VERSION
-details-v1-79dfbd6fff-665xs.default                    Kubernetes     SYNCED (2m46s)     SYNCED (2m46s)     SYNCED (2m31s)     SYNCED (2m46s)     IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-istio-egressgateway-759bd6b594-477ns.istio-system      Kubernetes     SYNCED (2m48s)     SYNCED (2m48s)     SYNCED (2m31s)     IGNORED            IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-istio-ingressgateway-58b9f85cf8-lq29h.istio-system     Kubernetes     SYNCED (2m48s)     SYNCED (2m48s)     SYNCED (2m31s)     IGNORED            IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-productpage-v1-dffc47f64-2wcmv.default                 Kubernetes     SYNCED (2m46s)     SYNCED (2m46s)     SYNCED (2m31s)     SYNCED (2m46s)     IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-ratings-v1-65f797b499-k5vmf.default                    Kubernetes     SYNCED (2m31s)     SYNCED (2m31s)     SYNCED (2m31s)     SYNCED (2m31s)     IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-reviews-v1-5c4d6d447c-v8h8x.default                    Kubernetes     SYNCED (2m46s)     SYNCED (2m46s)     SYNCED (2m31s)     SYNCED (2m46s)     IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-reviews-v2-65cb66b45c-s774h.default                    Kubernetes     SYNCED (2m46s)     SYNCED (2m46s)     SYNCED (2m31s)     SYNCED (2m46s)     IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-reviews-v3-f68f94645-x8pz4.default                     Kubernetes     SYNCED (2m43s)     SYNCED (2m43s)     SYNCED (2m31s)     SYNCED (2m43s)     IGNORED     istiod-85949f54cd-2kcnw     1.24.3
-
+NAME                                                  CLUSTER        ISTIOD                      VERSION     SUBSCRIBED TYPES
+details-v1-77b775f46-zjrdc.default                    Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      4 (CDS,LDS,EDS,RDS)
+istio-egressgateway-69975dcc7d-rp2vc.istio-system     Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      3 (CDS,LDS,EDS)
+istio-ingressgateway-7b785cd64-lctkr.istio-system     Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      3 (CDS,LDS,EDS)
+productpage-v1-78dfd4688c-rp7ch.default               Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      4 (CDS,LDS,EDS,RDS)
+ratings-v1-7c4c8d6794-wqrcm.default                   Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      4 (CDS,LDS,EDS,RDS)
+reviews-v1-849f9bc5d6-l27s6.default                   Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      4 (CDS,LDS,EDS,RDS)
+reviews-v2-5c757d5846-6j52v.default                   Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      4 (CDS,LDS,EDS,RDS)
+reviews-v3-6d5d98f5c4-5pn8q.default                   Kubernetes     istiod-56899ffd45-vkfw6     1.28.0      4 (CDS,LDS,EDS,RDS)
 ```
 
 ### Get all containers 
@@ -239,12 +257,12 @@ reviews-v3-f68f94645-x8pz4.default                     Kubernetes     SYNCED (2m
 ```bash
 $ kubectl get pods -o jsonpath='{range .items[*]}{"\n"}{.metadata.name}{":\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'  | sort
 
-details-v1-79dfbd6fff-665xs:	docker.io/istio/examples-bookinfo-details-v1:1.20.2, docker.io/istio/proxyv2:1.24.3,
-productpage-v1-dffc47f64-2wcmv:	docker.io/istio/examples-bookinfo-productpage-v1:1.20.2, docker.io/istio/proxyv2:1.24.3,
-ratings-v1-65f797b499-k5vmf:	docker.io/istio/examples-bookinfo-ratings-v1:1.20.2, docker.io/istio/proxyv2:1.24.3,
-reviews-v1-5c4d6d447c-v8h8x:	docker.io/istio/examples-bookinfo-reviews-v1:1.20.2, docker.io/istio/proxyv2:1.24.3,
-reviews-v2-65cb66b45c-s774h:	docker.io/istio/examples-bookinfo-reviews-v2:1.20.2, docker.io/istio/proxyv2:1.24.3,
-reviews-v3-f68f94645-x8pz4:	docker.io/istio/examples-bookinfo-reviews-v3:1.20.2, docker.io/istio/proxyv2:1.24.3,
+details-v1-77b775f46-zjrdc:	docker.io/istio/examples-bookinfo-details-v1:1.20.3, docker.io/istio/proxyv2:1.28.0,
+productpage-v1-78dfd4688c-rp7ch:	docker.io/istio/examples-bookinfo-productpage-v1:1.20.3, docker.io/istio/proxyv2:1.28.0,
+ratings-v1-7c4c8d6794-wqrcm:	docker.io/istio/examples-bookinfo-ratings-v1:1.20.3, docker.io/istio/proxyv2:1.28.0,
+reviews-v1-849f9bc5d6-l27s6:	docker.io/istio/examples-bookinfo-reviews-v1:1.20.3, docker.io/istio/proxyv2:1.28.0,
+reviews-v2-5c757d5846-6j52v:	docker.io/istio/examples-bookinfo-reviews-v2:1.20.3, docker.io/istio/proxyv2:1.28.0,
+reviews-v3-6d5d98f5c4-5pn8q:	docker.io/istio/examples-bookinfo-reviews-v3:1.20.3, docker.io/istio/proxyv2:1.28.0
 ```
 
 ### Access the application within the cluster:
@@ -318,10 +336,29 @@ spec:
           number: 9080
 ```
 
+### Logging in istiod
+
+```bash
+# set to info level 
+$ kubectl logs -f deploy/istiod -n istio-system
+
+# Istiod Introspection - inspect and manipulate the internal state of an istiod instance.
+$ kubectl logs -f deploy/istiod -n istio-system | grep ControlZ 
+2025-11-23T13:26:56.376438Z	info	ControlZ available at 127.0.0.1:9876
+
+# port-forward the ControlZ endpoint locally and connect through your local browser:
+$ istioctl dashboard controlz deployment/istiod.istio-system
+# Access http://localhost:9876/
+
+kubectl exec -n istio-system deploy/istiod -- sh
+curl -X GET http://localhost:15014
+```
+
+
 ### Access the application outside the cluster:
 
 ```bash
-$ curl localhost:8080/productpage
+$ curl http://localhost:8080/productpage
 ```
 
 Generate some traffic:
