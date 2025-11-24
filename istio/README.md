@@ -226,7 +226,7 @@ $ istioctl dashboard kiali
 # enable the default namespace for for Istio injection
 $ kubectl label namespace default istio-injection=enabled
 # deploy the bookinfo application
-$ kubectl apply -f $ISTIO_HOME/samples/bookinfo/platform/kube/bookinfo.yaml  
+$ kubectl apply -f bookinfo.yaml  
 $ kubectl get pods
 details-v1-79dfbd6fff-665xs      2/2     Running   0          18s
 productpage-v1-dffc47f64-2wcmv   2/2     Running   0          18s
@@ -275,7 +275,7 @@ $ kubectl run busybox -it --image=radial/busyboxplus:curl --restart=Never --rm -
 ### Open the application to outside traffic
 
 ```bash
-$ kubectl apply -f $ISTIO_HOME/samples/bookinfo/networking/bookinfo-gateway.yaml
+$ kubectl apply -f bookinfo-gateway.yaml
 ```
 
 `Gateway` describes a load balancer operating at the edge of the mesh receiving incoming or outgoing HTTP/TCP connections.
@@ -336,7 +336,7 @@ spec:
           number: 9080
 ```
 
-### Logging in istiod
+### Logging
 
 ```bash
 # set to info level 
@@ -350,10 +350,54 @@ $ kubectl logs -f deploy/istiod -n istio-system | grep ControlZ
 $ istioctl dashboard controlz deployment/istiod.istio-system
 # Access http://localhost:9876/
 
-kubectl exec -n istio-system deploy/istiod -- sh
-curl -X GET http://localhost:15014
+# the VirtualService route name 'bookinfo-homepage' is visible in the ingress-gateway logs
+$ kubectl logs -f deploy/istio-ingressgateway -n istio-system
+
+[2025-11-24T08:20:44.708Z] "GET /productpage HTTP/1.1" 200 - via_upstream - "-" 0 15072 8 8 "10.42.0.1" "curl/8.7.1" 
+"6d225f60-1541-9978-a9e0-93ff5f036aed" "localhost:8080" "10.42.2.9:9080" outbound|9080||productpage.default.svc.cluster.local 
+10.42.0.7:44142 10.42.0.7:8080 10.42.0.1:47149 - bookinfo-homepage
+
+# log message from the istio-proxy within the pod
+$ kubectl logs -f deploy/productpage-v1 -c istio-proxy
+[2025-11-24T08:20:44.708Z] "GET /productpage HTTP/1.1" 200 - via_upstream - "-" 0 15072 8 8 "10.42.0.1" "curl/8.7.1" 
+"6d225f60-1541-9978-a9e0-93ff5f036aed" "localhost:8080" "10.42.2.9:9080" inbound|9080|| 127.0.0.6:34339 10.42.2.9:9080 
+10.42.0.1:0 outbound_.9080_._.productpage.default.svc.cluster.local default
+
+# Note in istiod pod we don't see anything related to the request
 ```
 
+In `Red Hat OpenShift Service Mesh 2` you enable debug logging for the ingress gateway by editing the `ServiceMeshControlPlane` (SMCP) resource.
+
+Example to try out:
+
+```bash
+apiVersion: maistra.io/v2
+kind: ServiceMeshControlPlane
+metadata:
+  name: basic
+  namespace: istio-system
+spec:
+  gateways:
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      runtime:
+        deployment:
+          overrides:
+          - kind: Deployment
+            name: istio-ingressgateway
+            patches:
+            - path: spec.template.spec.containers.[name:istio-proxy].env
+              value:
+              - name: LOG_LEVEL
+                value: debug
+              - name: PROXY_LOG_LEVEL
+                value: debug              
+```
+
+- `LOG_LEVEL` vs `PROXY_LOG_LEVEL`:
+    - `LOG_LEVEL` controls Istio control-plane logging. 
+    - `PROXY_LOG_LEVEL` controls Envoy proxy logging inside the ingress gateway pod.
 
 ### Access the application outside the cluster:
 
