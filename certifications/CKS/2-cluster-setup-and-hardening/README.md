@@ -66,7 +66,7 @@ $ kubectl apply -f kube-bench-pod/kube-bench-job-all.yaml
 
 Tutorial about [`kube-bench`](https://medium.com/@thamunkpillai/kube-bench-a-comprehensive-guide-14cc022a3e8c)
 
-### CIS Scanning as part of Trivy and the Trivy Operator
+- CIS Scanning as part of Trivy and the Trivy Operator
 
 [Trivy](https://github.com/aquasecurity/trivy), the all in one cloud native security scanner, can be deployed 
 as a Kubernetes Operator inside a cluster. Both, the `Trivy CLI`, and the `Trivy Operator` support CIS Kubernetes Benchmark 
