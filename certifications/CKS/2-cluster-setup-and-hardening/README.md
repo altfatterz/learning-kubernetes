@@ -290,7 +290,8 @@ yes
 
 #### Certificates API 
 
-CertificateSigningRequest - https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/certificate-signing-request-v1/#CertificateSigningRequest
+- `CertificateSigningRequest` - https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/certificate-signing-request-v1/#CertificateSigningRequest
+- The controller-manager is handling the `approving` and `signing` the `CertificateSigningRequest`
 
 ```bash
 # Create a private key
