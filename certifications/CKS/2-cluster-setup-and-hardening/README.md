@@ -437,6 +437,45 @@ type: bootstrap.kubernetes.io/token
 kubeadm join 192.168.121.43:6443 --token 17401b.f395accd246ae52d --discovery-token-ca-cert-hash sha256:e5d8e7ab99a9451ad95fcdd874ba32ebae94c61b50f1729d5f6b4af67026ff30
 ```
 
+### Service Account with Token
+
+```bash
+$ k3d cluster create
+$ kubectl cluster-info | grep Kubernetes
+Kubernetes control plane is running at https://0.0.0.0:50116
+$ kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > ca.crt
+$ openssl x509 -in ca.crt -text -noout
+$ curl https://0.0.0.0:50116 --cacert ca.crt -I
+HTTP/2 401
+$ kubectl create sa demo-sa
+$ kubectl create role pod-reader --verb=get --verb=list --verb=watch --resource=pods
+$ kubectl create rolebinding pod-reader-binding --role=pod-reader --serviceaccount=default:demo-sa
+$ export TOKEN=`kubectl create token demo-sa`
+# decode TOKEN
+$ jwt decode $TOKEN -j | jq .
+$ curl https://0.0.0.0:50116/api/v1/namespaces/default/pods --cacert ca.crt --header "Authorization: Bearer $TOKEN"
+{
+  "kind": "PodList",
+  "apiVersion": "v1",
+  "metadata": {
+    "resourceVersion": "926"
+  },
+  "items": []
+}
+$ curl https://0.0.0.0:50116/api/v1/namespaces/default/deployments --cacert ca.crt --header "Authorization: Bearer $TOKEN"
+{
+  "kind": "Status",
+  "apiVersion": "v1",
+  "metadata": {},
+  "status": "Failure",
+  "message": "deployments is forbidden: User \"system:serviceaccount:default:demo-sa\" cannot list resource \"deployments\" in API group \"\" in the namespace \"default\"",
+  "reason": "Forbidden",
+  "details": {
+    "kind": "deployments"
+  },
+  "code": 403
+}
+```
 
 ### KubeConfig 
 
