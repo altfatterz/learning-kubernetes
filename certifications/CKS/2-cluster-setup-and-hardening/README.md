@@ -298,7 +298,7 @@ yes
 $ openssl genrsa -out myuser.key 3072
 # Create a CSR 
 openssl req -new -key myuser.key -out myuser.csr -subj "/CN=myuser"
-# Encode the CSR request 
+# Encode the CSR request, important to delete all newline characters, producing a single continuous base64 string
 $ cat myuser.csr | base64 | tr -d "\n"
 $ kubectl apply -f cert-signing-request.yaml
 $ Get the list of CSRs:
@@ -334,6 +334,122 @@ NAME    READY   STATUS    RESTARTS   AGE
 nginx   1/1     Running   0          10h
 $ kubectl --context myuser get deploy
 Error from server (Forbidden): deployments.apps is forbidden: User "myuser" cannot list resource "deployments" in API group "apps" in the namespace "default"
+```
+
+#### API Groups
+
+- `kube proxy` vs `kubectl proxy`
+- `kube proxy` 
+  - is a cluster-level networking component that runs on every node and manages how Services route traffic to Pods.
+    - runs as DaemonSet on every node
+    - modes: 
+      - iptables - default mode, uses Linux kernel’s iptables rules to capture traffic to Service IPs and redirect to Pods.
+      - IPVS - performance-sensitive workloads, uses Linux kernel’s IP Virtual Server (IPVS) for load balancing.
+- `kubectl proxy` - local client-side tool that creates an HTTP proxy to the Kubernetes API server
+
+```bash
+# uses credentials in the kubeconfig file to access the cluster
+# start on different port: `kubectl proxy --port=9090`
+$ kubectl proxy
+Starting to serve on 127.0.0.1:8001
+# another terminal
+$ curl localhost:8001
+ "paths": [
+    "/.well-known/openid-configuration",
+    "/api",
+    "/api/v1",
+    "/apis",
+    "/apis/",
+    ...
+$ curl localhost:8001/apis | grep name
+      "name": "apiregistration.k8s.io",
+      "name": "apps",
+      "name": "events.k8s.io",
+      "name": "authentication.k8s.io",
+      "name": "authorization.k8s.io",
+      "name": "autoscaling",
+      "name": "batch",
+      "name": "certificates.k8s.io",
+      "name": "networking.k8s.io",
+      "name": "policy",
+      "name": "rbac.authorization.k8s.io",
+      "name": "storage.k8s.io",
+      "name": "admissionregistration.k8s.io",
+      "name": "apiextensions.k8s.io",
+      "name": "scheduling.k8s.io",
+      "name": "coordination.k8s.io",
+      "name": "node.k8s.io",
+      "name": "discovery.k8s.io",
+      "name": "flowcontrol.apiserver.k8s.io",
+      "name": "helm.cattle.io",
+      "name": "k3s.cattle.io",
+      "name": "traefik.containo.us",
+      "name": "traefik.io",
+      "name": "metrics.k8s.io",
+```
+
+### Bootstrap Token Secret Format 
+
+https://kubernetes.io/docs/reference/access-authn-authz/bootstrap-tokens/#bootstrap-token-secret-format
+https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-token/
+
+```bash
+$ k3d cluster create mycluster --k3s-arg "--kube-apiserver-arg=enable-bootstrap-token-auth=true@server:0"
+$ kubectl cluster-info | grep Kubernetes
+https://0.0.0.0:62723
+$ kubectl apply -f bootstrap-token-secret/secret.yaml
+$ curl -k  https://0.0.0.0:62723/api --header "Authorization: Bearer 07401b.f395accd246ae52d"
+{
+  "kind": "APIVersions",
+  "versions": [
+    "v1"
+  ],
+  "serverAddressByClientCIDRs": [
+    {
+      "clientCIDR": "0.0.0.0/0",
+      "serverAddress": "172.19.0.3:6443"
+    }
+  ]
+}
+
+# kubeadm token create
+# kubeadm token create [random-token-id].[random-secret] --dry-run --print-join-command --ttl 2h
+$ kubeadm token create 17401b.f395accd246ae52d --dry-run --print-join-command --ttl 2h
+[dryrun] Would perform action GET on resource "secrets" in API group "core/v1"
+[dryrun] Resource name "bootstrap-token-17401b", namespace "kube-system"
+[dryrun] Real object does not exist. Attempting to GET from followup reactors or from the fake client tracker
+[dryrun] Would perform action CREATE on resource "secrets" in API group "core/v1"
+[dryrun] Attached object:
+apiVersion: v1
+data:
+  auth-extra-groups: c3lzdGVtOmJvb3RzdHJhcHBlcnM6a3ViZWFkbTpkZWZhdWx0LW5vZGUtdG9rZW4=
+  expiration: MjAyNS0xMS0yOVQwOTo1Nzo1OVo=
+  token-id: MTc0MDFi
+  token-secret: ZjM5NWFjY2QyNDZhZTUyZA==
+  usage-bootstrap-authentication: dHJ1ZQ==
+  usage-bootstrap-signing: dHJ1ZQ==
+kind: Secret
+metadata:
+  name: bootstrap-token-17401b
+  namespace: kube-system
+type: bootstrap.kubernetes.io/token
+
+kubeadm join 192.168.121.43:6443 --token 17401b.f395accd246ae52d --discovery-token-ca-cert-hash sha256:e5d8e7ab99a9451ad95fcdd874ba32ebae94c61b50f1729d5f6b4af67026ff30
+```
+
+
+### KubeConfig 
+
+- default at `~/.kube/config`
+- view content with: `kubectl config view`
+- view another kube config file content: `kubectl --kubeconfig another-kube-config config view`
+- if you want to make it persistent put it into `.bashrc` or `.zshrc`
+
+```bash
+$ export KUBECONFIG=/path/to/another-kube-config
+# take effect to the existing session
+# or source ~/.zshrc
+$ source ~/.bashrc 
 ```
 
 ## Protect node metadata and endpoints
