@@ -645,15 +645,28 @@ $ shasum -a 512 kubernetes-modified.tar.gz
 3f7dd7aa7438a32ee67c8caef9b6b082e0a5bf74c5c951ff533fe1c5ece4f924b858d420a5dc8131754444ead76b4d10c3d5f94f6348fb1e1fd033ce51d970cd  kubernetes-modified.tar.gz
 ```
 
+## Securing The Kubernetes Dashboard
+
+## Network Policies
+
+```bash
+$ kubectl get netpol
+```
+
+## Ingress
+
+- Nginx / HaProxy / Traefik 
+
+- Ingress-Nginx Controller: https://kubernetes.github.io/ingress-nginx/deploy/
+
 
 ## Protect node metadata and endpoints
 
-## Securing The Kubernetes Dashboard
 
 
 ## Upgrade Kubernetes Frequently
 
-## Network Policies
+
 
 ## Securing Ingress
 
