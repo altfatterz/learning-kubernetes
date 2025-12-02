@@ -284,8 +284,15 @@ ATTRIBUTE   VALUE
 Username    system:admin
 Groups      [system:masters system:authenticated]
 
-$ kubectl auth can-i list deployments.apps
+$ kubectl auth can-i list deployments
 yes
+
+# dev-user does not have permission to list nodes
+$ kubectl auth can-i list nodes -as dev-user
+no
+# dev-user does not permission to create pods in prod namespace   
+$ kubectl auth can-i create pods -as dev-user --namespace prod
+no
 ```
 
 #### Certificates API 
@@ -491,11 +498,158 @@ $ export KUBECONFIG=/path/to/another-kube-config
 $ source ~/.bashrc 
 ```
 
+### Authorization Modes
+
+- `kubelet` on the nodes when connects to `kube-apiserver` they use the `Node authoriser` since it is using a user with `system:nodes` group
+- `abac` 
+  - https://kubernetes.io/docs/reference/access-authn-authz/abac/
+  - attribute based authorization - edit the policy file and restart the `kube-apiserver` - hard to manage, is not used
+  - policy file is JSON Object per line (JSONL)
+- `rbac` - we create `role` and `rolebindings`
+- `webhook`
+  - outsource the authorization for example to [`Open Policy Agent`](https://www.openpolicyagent.org/)
+  - `kube-apiserver` will make a network call to the OPA
+- `AlwaysAllow`
+- `AlwaysDeny`
+
+```bash
+# your request is authorised in this order until one is authorised
+$ kube-apiserver --authorization-mode=Node,RBAC,Webhook
+```
+
+### Namespaced vs Non-Namespaced resources
+
+```bash
+# nodes, pv, clusteroles, etc
+$ kubectl api-resources --namespaced=false
+# pods, deployments, etc
+$ kubectl api-resources --namespaced=true
+```
+
+- when you create a `clusterolebinding` for listing pods th  
+
+```bash
+$ kubectl get clusterroles
+$ kubectl get clusterrolebindings
+# grant user michelle storage responsibilities
+$ kubectl create clusterrole storage-admin --verb=* --resource=persistentvolumes,storageclasses
+$ kubectl create clusterrolebinding michelle-storage-admin --clusterrole=storage-admin --user=michelle
+$ kubectl auth can-i create pv --as michelle
+$ kubectl auth can-i create storageclass --as michelle
+```
+
+
+### Kubelet Security
+
+- `kubadm` does not download / install the `kubelet` but managed the config file.
+
+Ports:
+- 10250 - full access
+- 10255 - unauthenticated read-only access (disable it with `--read-only-port=0` / `readOnlyPort:0` )
+
+```bash
+$ curl -sk https://localhost:10250/pods
+# system logs of the node
+$ curl -sk https://localhost:10250/logs/syslog
+$ curl -sk https://localhost:10255/metrics
+
+# disable anonymous authentication in the kubelet-config.yaml (KubeletConfiguration)
+authenticaton.anonymous.enabled: false
+
+# disable anonymous authentication in the kubelet.service
+--anonymous-auth=false
+```
+
+Two authentication methods:
+
+- `Certificate based` - recommended
+
+```bash
+
+# in the kubelet-config.yaml (KubeletConfiguration)
+authentication.x509.clientCAFile: /path/to/ca.crt
+
+# in the kubelet.service
+--client-ca-file=/path/to/ca.crt
+
+# kube-apiserver is a client to the kubelet
+$ curl -sk https://localhost:10255/pods --key kubelet-key.pem --cert kubelet-cert.pem
+
+# cat /etc/system/systemd/kube-apiserver.service
+--kubelet-client-certificate=/path/to/kubelet-cert.pem
+--kubelet-client-key=/path/to/kubelet-key.pem
+
+```
+
+- `Bearer Token based`
+
+ 
+### Cluster Upgrades 
+
+https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/
+
+Latest kubernetes versions: (1.34.2 at the time of writing)
+https://github.com/kubernetes/kubernetes/releases
+
+Supports the always the last 3 releases so:
+
+- 1.34
+- 1.33
+- 1.32
+
+Recommended way to upgrade one minor version at a time.
+
+- kube-apiserver, version X
+- controller-manager, can be X-1
+- kube-scheduler, can be X-1
+- kubelet, can be X-2
+- kube-proxy, can be X-2
+
+- kubectl
+
+etcd version: https://etcd.io/ (time of writing 3.7)
+coredns version: https://coredns.io/ (time of writing 1.13.1)
+
+Version Skew Policy: https://kubernetes.io/releases/version-skew-policy/
+History of Kubernetes: https://blog.risingstack.com/the-history-of-kubernetes/
+Kubernetes Release Versioning: https://github.com/kubernetes/design-proposals-archive/blob/main/release/versioning.md
+Kubernetes Releases: https://github.com/kubernetes/kubernetes/releases
+
+```bash
+$ kubeadm upgrade plan
+$ kubeadm upgrade apply
+```
+
+- kubeadm follows the same version as the kubernetes version
+- Upgrade master nodes (kubeadm and kubelet), all management function is down
+- Upgrade work nodes (kubeadm/kubelet, drain the node, undrain) one at a time, drain nodes first
+
+## Verifying Platform Binaries
+
+https://kubernetes.io/releases/
+
+The shasum of a file changes when its contents are modified and should always be compared against the hash 
+on the official pages to ensure the same file is downloaded.
+
+```bash
+$ wget https://dl.k8s.io/v1.34.2/kubernetes.tar.gz
+# linux: sha512sum kubernetes.tar.gz  
+$ shasum -a 512 kubernetes.tar.gz
+021433b7de611498e31819f53e450fc28c8f9ba83808e2cdf89c235567071f9083cbb7ff8d23ab9aa694ccf252daee71b6a7b01f0e21285b63ad0fcabac4fa16  kubernetes.tar.gz
+$ tar -xf kubernetes.tar.gz
+$ cd kubernetes
+$ echo "v1.34.0-modified" > version
+$ cd ..
+$ tar -czf kubernetes-modified.tar.gz kubernetes
+$ shasum -a 512 kubernetes-modified.tar.gz
+3f7dd7aa7438a32ee67c8caef9b6b082e0a5bf74c5c951ff533fe1c5ece4f924b858d420a5dc8131754444ead76b4d10c3d5f94f6348fb1e1fd033ce51d970cd  kubernetes-modified.tar.gz
+```
+
+
 ## Protect node metadata and endpoints
 
 ## Securing The Kubernetes Dashboard
 
-## Verifying Platform Binaries
 
 ## Upgrade Kubernetes Frequently
 
