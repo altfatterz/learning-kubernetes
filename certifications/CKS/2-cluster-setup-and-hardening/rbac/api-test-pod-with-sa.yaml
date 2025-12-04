@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: api-test-pod-with-sa
+  name: api-test-pod-with-sa
+spec:
+  containers:
+    - name: api-test
+      args: ["infinity"]
+      command: ["sleep"]
+      image: nginx
+  restartPolicy: Never
+  serviceAccountName: node-viewer-service

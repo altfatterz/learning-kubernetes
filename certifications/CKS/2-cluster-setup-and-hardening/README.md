@@ -660,16 +660,6 @@ $ kubectl get netpol
 - Ingress-Nginx Controller: https://kubernetes.github.io/ingress-nginx/deploy/
 
 
-## Protect node metadata and endpoints
-
-
-
-## Upgrade Kubernetes Frequently
-
-
-
 ## Securing Ingress
-
-
 
 
