@@ -3,9 +3,10 @@ kind: Ingress
 metadata:
   name: ingress-wear-watch
 spec:
-  ingressClassName: ingress
+  ingressClassName: nginx
   rules:
-    - http:
+    - host: "foo.example.org"
+      http:
         paths:
           - path: /wear
             pathType: Prefix
@@ -13,11 +14,11 @@ spec:
               service:
                 name: wear-service
                 port:
-                  number: 80
+                  number: 8080
           - path: /watch
             pathType: Prefix
             backend:
               service:
                 name: watch-service
                 port:
-                  number: 80
+                  number: 8080

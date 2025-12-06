@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: audit-nginx
+spec:
+  containers:
+    - image: nginx
+      name: audit-nginx
+  securityContext:
+    seccompProfile:
+      type: Localhost
+      # must be existing on the node where it can be scheduled /var/lib/kubelet/seccomp/profiles/audit.json
+      localhostProfile: profiles/audit.json

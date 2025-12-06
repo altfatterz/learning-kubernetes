@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-wear
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp-wear
+  template:
+    metadata:
+      labels:
+        app: webapp-wear
+    spec:
+      containers:
+        - image: kodekloud/ecommerce:apparels
+          name: simple-webapp
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-video
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp-video
+  template:
+    metadata:
+      labels:
+        app: webapp-video
+    spec:
+      containers:
+        - image: kodekloud/ecommerce:video
+          name: simple-webapp
+          ports:
+            - containerPort: 8080
+              protocol: TCP
