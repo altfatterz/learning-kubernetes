@@ -66,7 +66,8 @@ $ multipass launch 24.04 \
 
 ```bash
 $ multipass shell docker-host
-
+$ uname -r
+6.8.0-88-generic
 $ apt list --upgradable
 $ docker run hello-world
 $ systemctl list-units --type=service --state=running | grep docker
