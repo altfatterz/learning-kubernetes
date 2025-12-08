@@ -394,7 +394,6 @@ significantly reducing the attack surface of applications and containers
 # check if the kernel on the host supports seccomp
 $ grep CONFIG_SECCOMP= /boot/config-$(uname -r)
 CONFIG_SECCOMP=y
-
 ```
 
 - The [default seccomp profile]https://github.com/moby/profiles/blob/main/seccomp/default.json in Docker disables around 44 system calls out of 300+
@@ -440,6 +439,28 @@ root
 $ docker run --rm -it debian:latest \
     unshare --map-root-user --user sh -c whoami
 unshare: unshare failed: Operation not permitted        
+```
+
+## seccomp with kubernetes 
+
+```bash
+$ kubectl apply -f nginx-seccomp-runtimedefault.yaml
+$ kubectl exec -it nginx-seccomp-runtimedefault -- grep Seccomp /proc/1/status
+Seccomp:	2
+Seccomp_filters:	1
+
+$ kubectl apply -f nginx-seccomp-unconfined.yaml
+$ kubectl exec -it nginx-seccomp-unconfined -- grep Seccomp /proc/1/status
+Seccomp:	0
+Seccomp_filters:	0
+
+$ kubectl apply -f nginx-seccomp-localhost.yaml
+$ kubectl exec -it nginx-seccomp-localhost -- grep Seccomp /proc/1/status
+Seccomp:	2
+Seccomp_filters:	1
+
+# check what syscall where made on the k8s-worker node
+tail -f /var/log/syslog
 ```
 
 ## View blocked syscalls:
