@@ -478,7 +478,155 @@ Check logs:
 $ kubectl logs -f -n tracee `kubectl get -n tracee pods -l app.kubernetes.io/name=tracee -o custom-columns=":metadata.name" --no-headers` | jq .
 ```
 
-## AppArmor
+## AppArmor - https://apparmor.net/
 
-TODO
+- with `seccomp` you can restrict specific syscalls, but you cannot restrict to specific files or directory
+
+```bash
+$ mp shell k8s-worker 
+# check that the profiles were loaded -> reports SUCCESS
+$ systemctl status apparmor
+● apparmor.service - Load AppArmor profiles
+     Loaded: loaded (/usr/lib/systemd/system/apparmor.service; enabled; preset: enabled)
+     Active: active (exited) since Fri 2025-12-12 16:08:23 CET; 41s ago
+       Docs: man:apparmor(7)
+             https://gitlab.com/apparmor/apparmor/wikis/home/
+    Process: 427 ExecStart=/lib/apparmor/apparmor.systemd reload (code=exited, status=0/SUCCESS)
+   Main PID: 427 (code=exited, status=0/SUCCESS)
+        CPU: 86ms
+        
+# AppArmor is enabled and kernel module has AppArmor enforcement enabled.    
+$ cat /sys/module/apparmor/parameters/enabled
+Y
+# just like seccomp is used with a profile, this file shows the profile name next to the enforcement level
+# enforce - violations are blocked
+# complain - violations are logged but allowed
+# unconfined - the process is not restricted by AppArmor rules, no events are logged
+$ sudo cat /sys/kernel/security/apparmor/profiles
+rsyslogd (enforce)
+tcpdump (enforce)
+transmission-cli (complain)
+trinity (unconfined)
+...
+
+# checking the current state of AppArmor on a Linux system
+$ sudo aa-status
+119 profiles are loaded.
+24 profiles are in enforce mode.
+...
+4 profiles are in complain mode.
+...
+0 profiles are in prompt mode.
+0 profiles are in kill mode.
+91 profiles are in unconfined
+...
+```
+
+```bash
+profile apparmor-deny-write flags=(attach_disconnected) {
+  # Deny all write attempts anywhere
+  deny /** w
+}
+
+profile apparmor-deny-proc-write flags=(attach_disconnected) {
+  # Deny all writes to /proc
+  deny /proc/* w
+}
+```
+
+### Create AppArmor profiles using Apparmor utilities
+
+```bash
+$ sudo apt-get update
+$ sudo apt-get install -y apparmor-utils
+# transfer the script to the node
+$ multipass transfer apparmor/add-data.sh k8s-worker:/home/ubuntu/add-data.sh 
+# on the node execute
+$ sudo aa-genprof /root/ubuntu/add-data.sh
+# Asks to start the application to be profiled in another window and exercise its functionality now.
+
+Profile:  /home/ubuntu/add-data.sh
+Execute:  /usr/bin/mkdir
+Severity: unknown
+
+(I)nherit / (C)hild / (N)amed / (X) ix On / (D)eny / Abo(r)t / (F)inish
+
+Profile:  /home/ubuntu/add-data.sh
+Execute:  /usr/bin/tee
+Severity: 3
+
+(I)nherit / (C)hild / (P)rofile / (N)amed / (U)nconfined / (X) ix On / (D)eny / Abo(r)t / (F)inish
+
+Profile:  /home/ubuntu/add-data.sh
+Execute:  /usr/bin/date
+Severity: unknown
+
+...
+
+# profile was created
+ubuntu@k8s-worker:~$ sudo aa-status
+apparmor module is loaded.
+123 profiles are loaded.
+25 profiles are in enforce mode.
+   /home/ubuntu/add-data.sh
+...   
+
+$ sudo cat /etc/apparmor.d/home.ubuntu.add-data.sh 
+abi <abi/3.0>,
+
+include <tunables/global>
+
+/home/ubuntu/add-data.sh {
+  include <abstractions/base>
+  include <abstractions/bash>
+  include <abstractions/consoles>
+
+  deny /etc/ld.so.cache r,
+  deny /proc/filesystems r,
+
+  /etc/locale.alias r,
+  /home/ubuntu/add-data.sh r,
+  /usr/bin/bash ix,
+  /usr/bin/date mrix,
+  /usr/bin/mkdir mrix,
+  /usr/bin/tee mrix,
+  owner /home/*/tmp/ r,
+  owner /home/*/tmp/create.log w,
+
+}  
+
+# change the `data-directory` then you will get error
+ubuntu@k8s-worker:~$ ./add-data.sh
+mkdir: cannot create directory ‘/home/ubuntu/tmp2’: Permission denied
+
+# also in the logs
+$ journalctl -k | grep DENIED
+Dec 12 17:06:05 k8s-worker kernel: audit: type=1400 audit(1765555565.308:444): apparmor="DENIED" operation="mkdir" class="file" profile="/home/ubuntu/add-data.sh" name="/home/ubuntu/tmp2/" pid=23585 comm="mkdir" requested_mask="c" denied_mask="c" fsuid=1000 ouid=1000
+
+# generated this
+ubuntu@k8s-worker:~$ sudo cat /sys/kernel/security/apparmor/profiles | grep add-data
+/home/ubuntu/add-data.sh (enforce)
+/home/ubuntu/add-data.sh//null-/usr/bin/date (complain)
+/home/ubuntu/add-data.sh//null-/usr/bin/tee (complain)
+/home/ubuntu/add-data.sh//null-/usr/bin/mkdir (complain)
+
+# disable the profile
+$ sudo apparmor_parser -R /etc/apparmor.d/home.ubuntu.add-data.sh
+$ sudo ln -s /etc/apparmor.d/home.ubuntu.add-data.sh /etc/apparmor.d/disable
+$ ./add-data.sh
+=> File created at Fri Dec 12 17:14:05 CET 2025
+
+# enable the profile again
+$ rm /etc/apparmor.d/disable/home.ubuntu.add-data.sh
+$ sudo apparmor_parser /etc/apparmor.d/home.ubuntu.add-data.sh
+ubuntu@k8s-worker:~$ ./add-data.sh
+tee: /home/ubuntu/tmp2/create.log: Permission denied
+```
+
+## AppArmor Profiles in Kubernetes
+
+```bash
+```
+
+
 
