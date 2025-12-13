@@ -611,6 +611,7 @@ ubuntu@k8s-worker:~$ sudo cat /sys/kernel/security/apparmor/profiles | grep add-
 /home/ubuntu/add-data.sh//null-/usr/bin/mkdir (complain)
 
 # disable the profile
+# -R, --remove		Remove apparmor definitions
 $ sudo apparmor_parser -R /etc/apparmor.d/home.ubuntu.add-data.sh
 $ sudo ln -s /etc/apparmor.d/home.ubuntu.add-data.sh /etc/apparmor.d/disable
 $ ./add-data.sh
@@ -623,10 +624,141 @@ ubuntu@k8s-worker:~$ ./add-data.sh
 tee: /home/ubuntu/tmp2/create.log: Permission denied
 ```
 
-## AppArmor Profiles in Kubernetes
+## AppArmor Profiles in Kubernetes - https://kubernetes.io/docs/tutorials/security/apparmor/
+
+- AppArmor Kernel Module Enabled
+- AppArmor Profile Loaded in the Kernel
+- Container Runtime should be supported
 
 ```bash
+$ multipass start k8s-master
+$ multipass start k8s-worker
+$ multipass shell k8s-worker
+
+# Put your snippet into a file
+$ sudo tee /etc/apparmor.d/k8s-apparmor-example-deny-write <<'EOF'
+#include <tunables/global>
+
+profile k8s-apparmor-example-deny-write flags=(attach_disconnected) {
+  #include <abstractions/base>
+
+  file,
+
+  # Deny all file writes.
+  deny /** w,
+}
+EOF
+
+# load into kernel 
+# -r, --replace		Replace apparmor definitions
+$ sudo apparmor_parser -r /etc/apparmor.d/k8s-apparmor-example-deny-write
+# verify that is loaded
+$ sudo aa-status | grep k8s-apparmor-example-deny-write
+k8s-apparmor-example-deny-write
+$ sudo apparmor_status | grep k8s-apparmor-example-deny-write
+k8s-apparmor-example-deny-write
+
+$ kubectl apply -f hello-apparmor.yaml
+# You can verify that the container is actually running with that profile
+$ kubectl exec hello-apparmor -- cat /proc/1/attr/current
+k8s-apparmor-example-deny-write (enforce)
+
+# violate the profile by writing to a file
+$ kubectl exec hello-apparmor -- touch /tmp/test
+touch: /tmp/test: Permission denied
+command terminated with exit code 1
 ```
 
+- If you specify a apparmor profile which is hasn't been loaded into the kernel the pod will be stuck in `Pending`
 
+## Security Profiles Operator: https://github.com/kubernetes-sigs/security-profiles-operator
+
+- Security Profiles Operator (SPO) is an out-of-tree Kubernetes enhancement which aims to make it easier to create and use 
+  - `SELinux`, 
+  - `seccomp`,
+  - `AppArmor` security profiles in Kubernetes clusters
+
+
+## Linux Compatibilities
+
+```bash
+$ docker run -it --rm --security-opt seccomp=unconfined busybox sh
+$ grep Seccomp /proc/self/status
+# Seccomp: 0 → unconfined (no seccomp filtering).
+# Seccomp: 1 → strict mode (rare).
+# Seccomp: 2 → filtered mode (default Docker seccomp profile).
+Seccomp:	0
+Seccomp_filters:	0
+# on the host
+$ docker inspect <container-id> | grep seccomp
+
+# seconds since epoch
+$ date
+Sat Dec 13 08:45:51 UTC 2025
+# even with unconfined seccomp profile we cannot set the date, you need CAP_SYS_TIME capability
+$ date -s '2025-12-13 08:45:51'
+date: can't set date: Operation not permitted
+```
+
+```bash
+# we cannot change the date even though we are root user
+$ whoami
+root
+$ id
+uid=0(root) gid=0(root) groups=0(root),10(wheel)
+```
+
+- Capabilities --> https://man7.org/linux/man-pages/man7/capabilities.7.html
+  - CAP_SYS_TIME - Set system clock
+  - CAP_SYS_BOOT - use reboot
+  - CAP_NET_ADMIN - Perform various network-related operations
+  - CAP_CHOWN - Make arbitrary changes to file UIDs and GIDs
+  - etc..
+
+```bash
+$ mp shell k8s-worker
+# get capabilities needed for ping
+$ getcap /usr/bin/ping
+/usr/bin/ping cap_net_raw=ep
+# check capabilities for a process
+$ getpcaps <process_id>
+
+$ capsh --decode=00000000a80425fb
+```
+
+Configure Security Context of Pod: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+
+```bash
+$ kubectl apply -f security-context-demo.yaml
+$ kubectl exec -it security-context-demo -c sec-ctx-1 -- cat /proc/1/status | grep Cap
+CapInh:	0000000000000000
+CapPrm:	00000000aa0425fb
+CapEff:	00000000aa0425fb
+CapBnd:	00000000aa0425fb
+CapAmb:	0000000000000000
+# not here that the cap_sys_time is added
+$ capsh --decode=00000000aa0425fb
+0x00000000aa0425fb=cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_sys_time,cap_mknod,cap_audit_write,cap_setfcap
+
+$ kubectl exec -it security-context-demo -c sec-ctx-2 -- cat /proc/1/status | grep Cap
+CapInh:	0000000000000000
+CapPrm:	00000000a80425fb
+CapEff:	00000000a80425fb
+CapBnd:	00000000a80425fb
+CapAmb:	0000000000000000
+# not here that the cap_sys_time is missing
+$ capsh --decode=00000000a80425fb
+0x00000000a80425fb=cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap
+
+# check this image does not have any capabilities set
+$ kubectl exec -it security-context-demo -c sec-ctx-3 -- cat /proc/1/status | grep Cap
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+# running with id 1000
+$ ubuntu@k8s-master:~$ kubectl exec -it security-context-demo -c sec-ctx-3 -- id
+$ uid=1000 gid=0(root) groups=0(root)
+```
 
