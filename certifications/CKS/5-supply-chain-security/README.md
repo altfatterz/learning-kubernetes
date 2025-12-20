@@ -105,22 +105,6 @@ $ grype rabbitmq:latest -o json | jq -e '.matches[].vulnerability.id'
   - Repo: https://console.cloud.google.com/artifacts/docker/distroless/us/gcr.io
   - do not contain package managers, contain shells, text editors, etc
 
-```bash
-$ trivy image httpd
-┌─────────────────────┬────────┬─────────────────┬─────────┐
-│       Target        │  Type  │ Vulnerabilities │ Secrets │
-├─────────────────────┼────────┼─────────────────┼─────────┤
-│ httpd (debian 13.2) │ debian │       87        │    -    │
-└─────────────────────┴────────┴─────────────────┴─────────┘
-
-$ trivy image httpd:alpine
-┌──────────────────────────────┬────────┬─────────────────┬─────────┐
-│            Target            │  Type  │ Vulnerabilities │ Secrets │
-├──────────────────────────────┼────────┼─────────────────┼─────────┤
-│ httpd:alpine (alpine 3.23.2) │ alpine │        0        │    -    │
-└──────────────────────────────┴────────┴─────────────────┴─────────┘
-```
-
 - [kube-linter]
   - https://github.com/stackrox/kube-linter
   - https://docs.kubelinter.io/#/
@@ -154,13 +138,157 @@ k3d-k3s-default-server-0   Ready    control-plane,master   30s   v1.31.5+k3s1
 $ kubeclt apply -f kube-linter/nginx-deployment-fixed.yaml
 
 Warning  FailedScheduling  13s   default-scheduler  0/4 nodes are available: 4 node(s) didn't match pod anti-affinity rules. preemption: 0/4 nodes are available: 4 No preemption victims found
-
 ```
 
 ## Image Security
 
-## Secure your supply chain
+- image: `nginx`
+- image: `docker.io/library/nginx:latest`
+- image: `gcr.io/kubernetes-e2e-test-images/dnsutils`
 
-## Use static analysis of workloads
+- Image Registries: (public registries) 
+  - docker.io (DockerHunb)
+  - gcr.io (from Google)
 
-## Scan images for known vulnerabilities
+- Private Registries
+
+```bash
+$ docker login private-registry.io
+Login Succeeded
+$ docker run private-registry.io/apps/internal-app
+```
+
+```bash
+$ kubectl create secret docker-registry image-registry \
+ --docker-server=DOCKER_REGISTRY_SERVER \
+ --docker-username=DOCKER_USER \
+ --docker-password=DOCKER_PASSWORD \
+ --docker-email=DOCKER_EMAIL
+```
+
+- Use this image in the `imagePullSecrets`:
+
+## Whitelist allowed registries
+
+- With `ValidatingAdmissionWebhook` and `AdmissionWebhookServer`
+- Deploy Opa Service and configure policies to restrict trusted registries (.rego)
+- `ImagePolicyWebhook` built-in admission controller https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#imagepolicywebhook
+
+example: use the `ImagePolicyWebhook` to deny using the `latest` tag
+
+```bash
+    - kube-apiserver
+    ...
+    - --enable-admission-plugins=NodeRestriction,ImagePolicyWebhook
+    - --admission-control-config-file=/etc/kubernetes/pki/admission_configuration.yaml
+```
+
+```bash
+  Warning  FailedCreate      25s (x5 over 56s)  replicaset-controller  (combined from similar events): 
+  Error creating: pods "nginx-latest-tsgdh" is forbidden: image policy webhook backend denied one or more images: 
+  Images using latest tag are not allowed
+```
+
+- [kubesec](https://kubesec.io/)
+ - https://github.com/controlplaneio/kubesec
+ - static analysis of manifest files before it is pushed to the cluster
+
+```bash
+# install krew the plugin manager for kubectl
+# https://krew.sigs.k8s.io/docs/user-guide/setup/install/#bash
+
+$ kubectl krew version
+OPTION            VALUE
+GitTag            v0.4.5
+
+$ kubectl krew list
+krew
+
+# install kubesec as a plugin using Krew
+$ kubectl krew install kubesec-scan
+$ kubectl krew list
+PLUGIN        VERSION
+krew          v0.4.5
+kubesec-scan  v1.1.0
+
+$ kubectl kubesec-scan version
+# a bit old version
+2.0.0
+
+# install instead with binary
+$ curl -LO https://github.com/controlplaneio/kubesec/releases/download/v2.14.2/kubesec_darwin_arm64.tar.gz
+$ tar -xvf kubesec_darwin_arm64.tar.gz
+$ sudo mv kubesec /usr/local/bin
+$ kubesec version
+version 2.14.2
+git commit bb804de5ed6f311a7d281c3d119fe85e77e75a13
+build date 2024-11-22T16:34:22Z
+
+# check kubesec-demo-result.json
+$ kubectl kubesec-scan deploynent nginx-deployment.yaml
+
+# Validate Kubernetes resource security policies
+$ kubesec
+ 
+Usage:
+  kubesec [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  http        Starts kubesec HTTP server on the specified IP address (optional) and port
+  print-rules Print all the scanning rules with their associated scores
+  scan        Scans Kubernetes resource YAML or JSON
+  version     Prints kubesec version
+```
+
+- `krew` plugins for security engineers: https://www.sysdig.com/blog/top-15-kubectl-plugins-for-security-engineers
+
+```bash
+$ cd kubesec
+$ kubesec scan kubesec-demo.yaml
+```
+
+- [trivy](https://trivy.dev/) - CVE scanner
+- CVE (Common Vulnerabilities and Exposures) https://www.cve.org/
+
+```bash
+$ brew install trivy
+$ trivy version
+Version: 0.68.2
+ 
+$ trivy image httpd
+┌─────────────────────┬────────┬─────────────────┬─────────┐
+│       Target        │  Type  │ Vulnerabilities │ Secrets │
+├─────────────────────┼────────┼─────────────────┼─────────┤
+│ httpd (debian 13.2) │ debian │       87        │    -    │
+└─────────────────────┴────────┴─────────────────┴─────────┘
+
+# smaller images have less vulnerabilities
+$ trivy image httpd:alpine
+┌──────────────────────────────┬────────┬─────────────────┬─────────┐
+│            Target            │  Type  │ Vulnerabilities │ Secrets │
+├──────────────────────────────┼────────┼─────────────────┼─────────┤
+│ httpd:alpine (alpine 3.23.2) │ alpine │        0        │    -    │
+└──────────────────────────────┴────────┴─────────────────┴─────────┘
+
+$ trivy image --severity CRITICAL nginx
+┌──────────────────────┬────────┬─────────────────┬─────────┐
+│        Target        │  Type  │ Vulnerabilities │ Secrets │
+├──────────────────────┼────────┼─────────────────┼─────────┤
+│ nginx (debian 12.11) │ debian │        4        │    -    │
+└──────────────────────┴────────┴─────────────────┴─────────┘
+
+# Scan a container image
+$ trivy image python:3.4-alpine
+
+# Scan a container image from a tar archive
+$ trivy image --input ruby-3.1.tar
+
+# Scan local filesystem
+$ trivy fs .
+
+# Run in server mode
+$ trivy server
+```
+
