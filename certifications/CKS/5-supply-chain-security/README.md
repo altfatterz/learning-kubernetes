@@ -121,6 +121,42 @@ $ trivy image httpd:alpine
 └──────────────────────────────┴────────┴─────────────────┴─────────┘
 ```
 
+- [kube-linter]
+  - https://github.com/stackrox/kube-linter
+  - https://docs.kubelinter.io/#/
+  - static analysis in Kubernetes manifest files.
+
+```bash
+# mac
+$ brew install kube-linter
+
+# linux
+# -L follow redirect, GitHub redirects the request to a storage bucket.
+# -O Saves the file exactly as named on the server
+$ curl -LO https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux.tar.gz
+$ tar -xvf kube-linter-linux.tar.gz
+$ sudo mv kube-linter /usr/local/bin/
+$ kube-linter version
+
+# example
+$ kube-linter
+$ kube-linter lint .
+
+# create 3 node cluster
+$ k3d cluster create --agents 3
+# test anti-affinity
+$ kubectl get nodes
+NAME                       STATUS   ROLES                  AGE   VERSION
+k3d-k3s-default-agent-0    Ready    <none>                 20s   v1.31.5+k3s1
+k3d-k3s-default-agent-1    Ready    <none>                 19s   v1.31.5+k3s1
+k3d-k3s-default-agent-2    Ready    <none>                 19s   v1.31.5+k3s1
+k3d-k3s-default-server-0   Ready    control-plane,master   30s   v1.31.5+k3s1
+$ kubeclt apply -f kube-linter/nginx-deployment-fixed.yaml
+
+Warning  FailedScheduling  13s   default-scheduler  0/4 nodes are available: 4 node(s) didn't match pod anti-affinity rules. preemption: 0/4 nodes are available: 4 No preemption victims found
+
+```
+
 ## Image Security
 
 ## Secure your supply chain
