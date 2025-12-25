@@ -8,15 +8,18 @@ Create kubeadm cluster using [`multipass`](https://canonical.com/multipass)
 # cilium installation in a k3d managed cluster will not work
 $ multipass list
 Name                    State             IPv4             Image
-k8s-master              Running           192.168.64.14    Ubuntu 24.04 LTS
+k8s-master              Running           192.168.64.16    Ubuntu 24.04 LTS
                                           172.16.235.192
-k8s-worker              Running           192.168.64.15    Ubuntu 24.04 LTS
-                                          172.16.254.128
+k8s-worker-1            Running           192.168.64.17    Ubuntu 24.04 LTS
+                                          172.16.230.0
+k8s-worker-2            Running           192.168.64.18    Ubuntu 24.04 LTS
+                                          172.16.140.0
 $ export KUBECONFIG=~/.kube/mp-config
 $ kubectl get nodes
-NAME         STATUS   ROLES           AGE   VERSION
-k8s-master   Ready    control-plane   18d   v1.34.2
-k8s-worker   Ready    <none>          18d   v1.34.2
+NAME           STATUS   ROLES           AGE     VERSION
+k8s-master     Ready    control-plane   6m10s   v1.34.3
+k8s-worker-1   Ready    <none>          3m44s   v1.34.3
+k8s-worker-2   Ready    <none>          3m39s   v1.34.3
 ```
 
 ### Install Cilium CLI
@@ -44,7 +47,6 @@ $ cilium install --version 1.18.5
 
 # check status
 $ cilium status --wait
-
     /¯¯\
  /¯¯\__/¯¯\    Cilium:             OK
  \__/¯¯\__/    Operator:           OK
@@ -52,27 +54,29 @@ $ cilium status --wait
  \__/¯¯\__/    Hubble Relay:       disabled
     \__/       ClusterMesh:        disabled
 
-DaemonSet              cilium                   Desired: 2, Ready: 2/2, Available: 2/2
-DaemonSet              cilium-envoy             Desired: 2, Ready: 2/2, Available: 2/2
+DaemonSet              cilium                   Desired: 3, Ready: 3/3, Available: 3/3
+DaemonSet              cilium-envoy             Desired: 3, Ready: 3/3, Available: 3/3
 Deployment             cilium-operator          Desired: 1, Ready: 1/1, Available: 1/1
-Containers:            cilium                   Running: 2
-                       cilium-envoy             Running: 2
+Containers:            cilium                   Running: 3
+                       cilium-envoy             Running: 3
                        cilium-operator          Running: 1
                        clustermesh-apiserver
                        hubble-relay
-Cluster Pods:          2/3 managed by Cilium
+Cluster Pods:          1/4 managed by Cilium
 Helm chart version:    1.18.5
-Image versions         cilium             quay.io/cilium/cilium:v1.18.5@sha256:2c92fb05962a346eaf0ce11b912ba434dc10bd54b9989e970416681f4a069628: 2
-                       cilium-envoy       quay.io/cilium/cilium-envoy:v1.34.12-1765374555-6a93b0bbba8d6dc75b651cbafeedb062b2997716@sha256:3108521821c6922695ff1f6ef24b09026c94b195283f8bfbfc0fa49356a156e1: 2
+Image versions         cilium             quay.io/cilium/cilium:v1.18.5@sha256:2c92fb05962a346eaf0ce11b912ba434dc10bd54b9989e970416681f4a069628: 3
+                       cilium-envoy       quay.io/cilium/cilium-envoy:v1.34.12-1765374555-6a93b0bbba8d6dc75b651cbafeedb062b2997716@sha256:3108521821c6922695ff1f6ef24b09026c94b195283f8bfbfc0fa49356a156e1: 3
                        cilium-operator    quay.io/cilium/operator-generic:v1.18.5@sha256:36c3f6f14c8ced7f45b40b0a927639894b44269dd653f9528e7a0dc363a4eb99: 1
-
+                       
 # get the running cilium pods
 $ kubectl get pods -A | grep cilium
-kube-system   cilium-b2wc6                              1/1     Running   0               79s
-kube-system   cilium-envoy-kfnh7                        1/1     Running   0               79s
-kube-system   cilium-envoy-xdsbc                        1/1     Running   0               79s
-kube-system   cilium-hf7fh                              1/1     Running   0               79s
-kube-system   cilium-operator-77c48d95b4-zckhh          1/1     Running   0               79s
+kube-system   cilium-27f9p                              1/1     Running   0          60s
+kube-system   cilium-cdzc7                              1/1     Running   0          60s
+kube-system   cilium-envoy-9pgjs                        1/1     Running   0          60s
+kube-system   cilium-envoy-k4866                        1/1     Running   0          60s
+kube-system   cilium-envoy-xlrrf                        1/1     Running   0          60s
+kube-system   cilium-operator-77c48d95b4-rxjm6          1/1     Running   0          60s
+kube-system   cilium-t694c                              1/1     Running   0          60s
 ```
 
 ### WireGuard
@@ -93,7 +97,7 @@ $ cilium upgrade --set encryption.enabled=true --set encryption.type=wireguard
 
 $ kubectl exec -it ds/cilium -n kube-system -- bash 
 root@k8s-master:/home/cilium# cilium-dbg status | grep Encryption
-$ Encryption:              Wireguard       [NodeEncryption: Disabled, cilium_wg0 (Pubkey: fRVQp2Q94RCDrKrWw53JOPwsHOkaN1HKUJidouoWpHY=, Port: 51871, Peers: 1)]
+Encryption:              Wireguard       [NodeEncryption: Disabled, cilium_wg0 (Pubkey: +CS14oPa9o/IUhS6IPh4hxbeZoBr5dpghpCrqmRfASg=, Port: 51871, Peers: 2)]
 
 ```
 
@@ -108,5 +112,11 @@ $ apt-get update
 $ apt-get -y install tcpdump
 
 # Check that traffic is sent via the cilium_wg0 tunnel device:
-$ tcpdump -n -i cilium_wg0
+$ multipass shell k8s-master
+$ sudo apt-get update
+$ sudo apt-get -y install tcpdump
+$ sudo tcpdump -n -i cilium_wg0 -X
+
 ```
+
+

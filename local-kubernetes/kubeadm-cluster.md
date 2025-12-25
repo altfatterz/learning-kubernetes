@@ -9,18 +9,25 @@ $ brew install --cask multipass
 ```bash
 # Launch master node 
 $ multipass launch 24.04 --name k8s-master --cpus 2 --memory 2G --disk 10G 
-# Launch worker node
-$ multipass launch 24.04 --name k8s-worker --cpus 2 --memory 2G --disk 10G 
+# Launch worker nodes
+$ multipass launch 24.04 --name k8s-worker-1 --cpus 2 --memory 2G --disk 10G 
+$ multipass launch 24.04 --name k8s-worker-2 --cpus 2 --memory 2G --disk 10G
 
 # Show instances
 $ multipass list
+Name                    State             IPv4             Image
+k8s-master              Running           192.168.64.16    Ubuntu 24.04 LTS
+k8s-worker-1            Running           192.168.64.17    Ubuntu 24.04 LTS
+k8s-worker-2            Running           192.168.64.18    Ubuntu 24.04 LTS
+
 $ multipass shell k8s-master
-$ multipass shell k8s-worker
+$ multipass shell k8s-worker-1
+$ multipass shell k8s-worker-2
 ```
 
 - These instructions are for Kubernetes v1.34
 
-## Run these command on both the `k8s-master` and `k8s-worker` VM
+## Run these command on the `k8s-master`, `k8s-worker-1`, `k8s-worker-2` VMs
 
 ```bash
 # Enable IPv4 packet forwarding 
@@ -29,7 +36,7 @@ net.ipv4.ip_forward = 1
 EOF
 # Apply sysctl params without reboot
 sudo sysctl --system
-Verify that net.ipv4.ip_forward is set to 1 with:
+# Verify that net.ipv4.ip_forward is set to 1 with:
 $ sysctl net.ipv4.ip_forward
 net.ipv4.ip_forward = 1
 $ sudo apt-get update
@@ -40,7 +47,7 @@ $ sudo mkdir -p /etc/containerd
 $ sudo containerd config default | sudo tee /etc/containerd/config.toml
 $ containerd --version
 containerd github.com/containerd/containerd 1.7.28
-$ sed -i 's/            SystemdCgroup = false/            SystemdCgroup = true/' /etc/containerd/config.toml
+$ sudo sed -i 's/            SystemdCgroup = false/            SystemdCgroup = true/' /etc/containerd/config.toml
 $ sudo systemctl restart containerd 
  
 # start to install kubelet / kubeadm / kubectl 
@@ -59,15 +66,15 @@ $ sudo systemctl enable --now kubelet
 # The kubelet is now restarting every few seconds, as it waits in a crashloop for kubeadm to tell it what to do.
 
 $ kubectl version
-Client Version: v1.34.2
+Client Version: v1.34.3
 Kustomize Version: v5.7.1
 The connection to the server localhost:8080 was refused - did you specify the right host or port?
 
 $ kubeadm version
-kubeadm version: &version.Info{Major:"1", Minor:"34", EmulationMajor:"", EmulationMinor:"", MinCompatibilityMajor:"", MinCompatibilityMinor:"", GitVersion:"v1.34.2", GitCommit:"8cc511e399b929453cd98ae65b419c3cc227ec79", GitTreeState:"clean", BuildDate:"2025-11-11T19:08:36Z", GoVersion:"go1.24.9", Compiler:"gc", Platform:"linux/arm64"}
+kubeadm version: &version.Info{Major:"1", Minor:"34", EmulationMajor:"", EmulationMinor:"", MinCompatibilityMajor:"", MinCompatibilityMinor:"", GitVersion:"v1.34.3", GitCommit:"df11db1c0f08fab3c0baee1e5ce6efbf816af7f1", GitTreeState:"clean", BuildDate:"2025-12-09T15:05:15Z", GoVersion:"go1.24.11", Compiler:"gc", Platform:"linux/arm64"}
 
 $ kubelet --version
-Kubernetes v1.34.2
+Kubernetes v1.34.3
 ```
 
 ## Execute on master node
@@ -80,30 +87,29 @@ $ mkdir -p $HOME/.kube
 $ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 $ kubectl get nodes
-NAME         STATUS     ROLES           AGE     VERSION
-k8s-master   NotReady   control-plane   3m20s   v1.34.2
+NAME         STATUS     ROLES           AGE   VERSION
+k8s-master   NotReady   control-plane   51s   v1.34.3
  
 # install a pod network, here we chose calico
 $ kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 # Check pods in the kube-system namespace:
-kubectl get pods -n kube-system
+$ kubectl get pods -n kube-system
 # verify k8s-master node is ready
 $ kubectl get nodes
 NAME         STATUS   ROLES           AGE   VERSION
-k8s-master   Ready    control-plane   16m   v1.34.2 
+k8s-master   Ready    control-plane   93s   v1.34.3
 $ kubectl cluster-info 
-Kubernetes control plane is running at https://192.168.64.14:6443
-CoreDNS is running at https://192.168.64.14:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+Kubernetes control plane is running at https://192.168.64.16:6443
+CoreDNS is running at https://192.168.64.16:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
 # print again the join command to be used on the worker node
 $ kubeadm token create --print-join-command
 ```
 
-## Execute on worker node
-
+## Execute on worker nodes
 
 ```bash
-$ sudo kubeadm join 192.168.64.14:6443 --token xrtdpq.ofwehju3ka34g5cy --discovery-token-ca-cert-hash sha256:c4bed71735c8edc750240725c25f74e9134af70a612d36c35e42d6b2da1fc03f
+$ sudo kubeadm join 192.168.64.16:6443 --token 72tuwt.y0ikgs1ltcgjjgom --discovery-token-ca-cert-hash sha256:e6a824a58b9050a934fb4d0ddc8d57c5c6691f7b63056cc5ec07dd89492c3972
 ```
 
 ## Execute again on master node
@@ -111,21 +117,21 @@ $ sudo kubeadm join 192.168.64.14:6443 --token xrtdpq.ofwehju3ka34g5cy --discove
 ```bash
 # after a while
 $ kubectl get nodes
-NAME         STATUS   ROLES           AGE     VERSION
-k8s-master   Ready    control-plane   35m     v1.34.2
-k8s-worker   Ready    <none>          2m57s   v1.34.2
+NAME           STATUS   ROLES           AGE     VERSION
+k8s-master     Ready    control-plane   3m12s   v1.34.3
+k8s-worker-1   Ready    <none>          46s     v1.34.3
+k8s-worker-2   Ready    <none>          41s     v1.34.3
 
 $ kubectl run nginx-test --image=nginx
 $ kubectl get pods -o wide
-NAME         READY   STATUS    RESTARTS   AGE   IP               NODE         NOMINATED NODE   READINESS GATES
-nginx-test   1/1     Running   0          8s    172.16.254.129   k8s-worker   <none>           <none>
+NAME         READY   STATUS    RESTARTS   AGE   IP             NODE           NOMINATED NODE   READINESS GATES
+nginx-test   1/1     Running   0          7s    172.16.140.1   k8s-worker-2   <none>           <none>
 ``` 
 
 ## Access the created cluster directly from your Mac
 
 ```bash
 $ multipass transfer k8s-master:/home/ubuntu/.kube/config ~/.kube/mp-config
-$ kubectl get pods -f ~/.kube/mp-config
 $ kubectl --kubeconfig=/Users/altfatterz/.kube/mp-config get pods
 NAME         READY   STATUS    RESTARTS   AGE
 nginx-test   1/1     Running   0          9m9s
@@ -158,7 +164,8 @@ $ curl 192.168.64.15:30080
 # Stop when not needed
 
 ```bash
-$ multipass stop k8s-worker
+$ multipass stop k8s-worker-1
+$ multipass stop k8s-worker-2
 $ multipass stop k8s-master
 ```
 
@@ -168,6 +175,9 @@ $ multipass stop k8s-master
 $ multipass stop k8s-master
 $ multipass stop k8s-worker
 $ multipass delete k8s-master
-$ multipass delete k8s-worker
+$ multipass delete k8s-worker-1
+$ multipass delete k8s-worker-2
 $ multipass purge
+$ multipass list
+No instances found.
 ```

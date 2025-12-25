@@ -30,12 +30,10 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  labels:
-    app: curlpod
-  name: curlpod
+  name: curl-pod
 spec:
   containers:
-    - command: ['sh', '-c', 'echo "Hello, Kubernetes!" && sleep 3600']
-      image: radial/busyboxplus:curl
-      name: curlpod
-      resources: {}
+    - name: curl
+      image: curlimages/curl
+      # This keeps the container running indefinitely
+      command: ["sleep", "infinity"]
