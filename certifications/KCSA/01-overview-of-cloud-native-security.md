@@ -16,7 +16,7 @@
   - AWS - GuardDuty - 
   - GCP - Security Command Center
 - `Application Firewalls` (WAF)
-  - Azure WAF (protection against SQL injection, XSS atack)
+  - Azure WAF (protection against SQL injection, XSS attack)
   - AWS WAF (Load Balancer , AWS CloudFront)
   - Google Cloud Armor (DDoS Attack)
 - `Container Security`
@@ -49,10 +49,13 @@
 #### Artifact Repository and Image Security
 
 - [Trivy](https://trivy.dev/latest/) / [Clair](https://github.com/quay/clair) - scan container images (including the base image)
-- [JFrog Artifact Repository](https://jfrog.com/artifactory/) - storing build artifacts
-- [GitHub Packages](https://docs.github.com/en/packages)
+- Popular Artifact Repository
+  - [JFrog Artifact Repository](https://jfrog.com/artifactory/) - storing build artifacts
+  - [GitHub Packages](https://docs.github.com/en/packages)
+  - [Nexus Repository](https://help.sonatype.com/en/sonatype-nexus-repository.html)
+
 - JFrog Artifactory great feature to check stored images for any security weakness by integrating with security scanning tools
-- Enhancing Image Security with Digital Signatures - images have no changes
+- `Enhancing Image Security with Digital Signatures` - images have no changes
 
 #### Workload and Application Security
 
@@ -61,7 +64,6 @@
 - [OWASP](https://en.wikipedia.org/wiki/OWASP)
 - [Datadog Application Security Monitoring (ASM)](https://www.datadoghq.com/product/application-security-management/)
 - [Sysdig](https://sysdig.com/)
-
 
 Simple port scan script: https://github.com/Sq00ky/Bash-Port-Scanner
 

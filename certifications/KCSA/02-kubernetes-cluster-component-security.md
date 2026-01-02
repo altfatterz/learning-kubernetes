@@ -34,7 +34,7 @@
 - The `kubelet` is the primary `node agent` running on each node
 - It `registers the node` with the `kube-apiserver`
 - The `kubelet` ensures that the containers described in the PodSpec are running and healthy
-- The `kubelet` instructs the container runtime engine to pull the container image and run the an instance
+- The `kubelet` instructs the container runtime engine to pull the container image and run an instance
 - The `kubelet` reports the health of the pod to the `kube-apiserver`
 - We manually install `kubelet` next to `kubeadm` (`sudo apt-get install -y kubelet kubeadm kubectl`)
 - `kubelet-config.yaml`: https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/
@@ -77,14 +77,14 @@ Authentication approaches:
 Using Certificates:
 
 ```bash
-// kubelet.service
+## kubelet.service
 ExecStart=/usr/local/bin/kubelet \\
 ...
 --client-ca-file=/path/to/ca.crt \\
 ...
 or
 
-// kubelet-config.yaml
+## kubelet-config.yaml
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 authentication: 
@@ -95,7 +95,7 @@ $ curl https://localhost:10250/pods --key kubelet-key.pem --cert kubelet-cert.pe
 
 $ As far a `kubelet` is considered `api-server` is a client also needs to authenticate
 
-// cat /etc/systemd/system/kube-apiserver.service
+## cat /etc/systemd/system/kube-apiserver.service
 [Service]
 ExecStart=/usr/local/bin/kube-apiserver \\
 ...
