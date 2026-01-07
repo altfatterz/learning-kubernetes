@@ -59,3 +59,9 @@ $ kubectl config use-context
 ```bash
 echo "MIID...yourBase64String..." | base64 -d | openssl x509 -noout -text
 ```
+
+### Operator Framework
+
+https://operatorhub.io/
+
+

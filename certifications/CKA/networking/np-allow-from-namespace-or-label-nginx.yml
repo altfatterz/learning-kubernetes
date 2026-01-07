@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-allow-from-namespace-or-label-nginx
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx
+  # applies for both incoming and outgoing traffic
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: np-test
+        - podSelector:
+            matchLabels:
+              client: busybox
+      # limit the port only 80
+      ports:
+        - protocol: TCP
+          port: 80
+

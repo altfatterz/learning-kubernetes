@@ -9,3 +9,10 @@ Use the browser within the VM to access the following documentation:
 - Helm Documentation https://helm.sh/docs 
 - Task-specific documentation provided in the Quick Reference box. This may include links to the official Kubernetes documentation or other resources that might be needed to solve a task 
 
+Using command line access references:
+
+```bash
+$ kubectl api-resources
+$ kubectl explain svc
+$ kubectl explain svc --recursive
+```

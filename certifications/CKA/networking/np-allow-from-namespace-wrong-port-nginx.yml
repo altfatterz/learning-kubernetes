@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: my-networkpolicy
+  name: np-allow-from-namespace-wrong-port-nginx
   namespace: np-test
 spec:
   podSelector:
@@ -10,9 +10,12 @@ spec:
   # applies for both incoming and outgoing traffic
   policyTypes:
     - Ingress
-    - Egress
   ingress:
     - from:
         - namespaceSelector:
             matchLabels:
-              team: np-test
+              kubernetes.io/metadata.name: np-test
+      # limit the port only 8080
+      ports:
+        - protocol: TCP
+          port: 8080

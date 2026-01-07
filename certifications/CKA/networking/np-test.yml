@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: np-busybox
+  namespace: np-test
+spec:
+  containers:
+    - name: busybox
+      image: radial/busyboxplus:curl
+      command: [ 'sh', '-c', 'while true; do sleep 5; done' ]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: np-busybox-default
+  labels:
+    client: busybox
+spec:
+  containers:
+    - name: busybox
+      image: radial/busyboxplus:curl
+      command: [ 'sh', '-c', 'while true; do sleep 5; done' ]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: np-nginx
+  namespace: np-test
+  labels:
+    app: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+
+

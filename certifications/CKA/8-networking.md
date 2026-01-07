@@ -24,13 +24,19 @@
   - `<pod-ip-address>.<namespace-name>.pod.cluster.local`
   - ex: 192-168-10-100.default.pod.cluster.local
 
+
 ```bash
+# setup cluster
+# k3s comes with a controller that enforces network policies by default 
+$ k3d cluster create k8s-cluster --agents 2
+ 
+# dnstest demo 
 $ kubectl apply -f networking/dnstest.yml
 $ kubectl get pods -o wide | grep dnstest
-busybox-dnstest   1/1     Running   0          96s   10.42.0.4   k3d-k8s-cluster-agent-0   <none>           <none>
-nginx-dnstest     1/1     Running   0          96s   10.42.0.5   k3d-k8s-cluster-agent-0   <none>           <none>
+busybox-dnstest   1/1     Running   0          8s    10.42.1.3   k3d-k8s-cluster-agent-1   <none>           <none>
+nginx-dnstest     1/1     Running   0          8s    10.42.1.4   k3d-k8s-cluster-agent-1   <none>           <none>
 
-$ kubectl exec busybox-dnstest -- curl -s -I 10.42.0.5
+$ kubectl exec busybox-dnstest -- curl -s -I 10.42.1.4
 HTTP/1.1 200 OK
 Server: nginx/1.27.3
 Date: Fri, 03 Jan 2025 20:16:15 GMT
@@ -40,19 +46,19 @@ Last-Modified: Tue, 26 Nov 2024 15:55:00 GMT
 Connection: keep-alive
 ETag: "6745ef54-267"
 
-$ kubectl exec busybox-dnstest -- curl nslookup 10-42-0-5.default.pod.cluster.local
+$ kubectl exec busybox-dnstest -- nslookup 10-42-1-4.default.pod.cluster.local
 Server:    10.43.0.10
 Address 1: 10.43.0.10 kube-dns.kube-system.svc.cluster.local
 
-Name:      10-42-0-5.default.pod.cluster.local
-Address 1: 10.42.0.5
+Name:      10-42-1-4.default.pod.cluster.local
+Address 1: 10.42.1.4
 
 $ kubectl get svc -A
-NAMESPACE     NAME             TYPE           CLUSTER-IP     EXTERNAL-IP             PORT(S)                      AGE
-default       kubernetes       ClusterIP      10.43.0.1      <none>                  443/TCP                      6m17s
-kube-system   kube-dns         ClusterIP      10.43.0.10     <none>                  53/UDP,53/TCP,9153/TCP       6m14s
-kube-system   metrics-server   ClusterIP      10.43.24.15    <none>                  443/TCP                      6m13s
-kube-system   traefik          LoadBalancer   10.43.167.72   172.18.0.4,172.18.0.5   80:31518/TCP,443:31510/TCP   5m23s
+NAMESPACE     NAME             TYPE           CLUSTER-IP     EXTERNAL-IP                        PORT(S)                      AGE
+default       kubernetes       ClusterIP      10.43.0.1      <none>                             443/TCP                      5m16s
+kube-system   kube-dns         ClusterIP      10.43.0.10     <none>                             53/UDP,53/TCP,9153/TCP       5m13s
+kube-system   metrics-server   ClusterIP      10.43.71.202   <none>                             443/TCP                      5m13s
+kube-system   traefik          LoadBalancer   10.43.231.85   172.21.0.3,172.21.0.4,172.21.0.5   80:30322/TCP,443:30384/TCP   4m58s
 
 ```
 
@@ -72,8 +78,8 @@ podSelector:
 - By default, pods are considered non-isolated and completely open to all communication
 - if any network policy selects a pod, the pods is considered isolated and will only be open to traffic allowed by network policies
 - a network policy can apply to `Ingress`, `Egress` or both
-- Ingress - incoming network - traffic coming into the pod from another source
-- Egress - outgoing network - traffic leaving the pod for another destination
+- `Ingress` - incoming network - traffic coming into the pod from another source
+- `Egress` - outgoing network - traffic leaving the pod for another destination
 
 ```yaml
 spec:
@@ -95,18 +101,14 @@ Exercise:
 
 ```bash
 $ kubectl create namespace np-test
-$ kubectl label namespace np-test team=np-test
-
-$ kubectl apply -f networking/np-nginx.yml
-$ kubectl apply -f networking/np-busybox.yml
-
+$ kubectl apply -f networking/np-test.yml
 $ kubectl get pod -o wide -n np-test
 NAME         READY   STATUS    RESTARTS   AGE   IP          NODE                      NOMINATED NODE   READINESS GATES
-np-busybox   1/1     Running   0          46s   10.42.1.7   k3d-k8s-cluster-agent-1   <none>           <none>
-np-nginx     1/1     Running   0          49s   10.42.0.7   k3d-k8s-cluster-agent-0   <none>           <none>
+np-busybox   1/1     Running   0          3s    10.42.2.4   k3d-k8s-cluster-agent-0   <none>           <none>
+np-nginx     1/1     Running   0          3s    10.42.1.5   k3d-k8s-cluster-agent-1   <none>           <none>
 
 # by default the np-nginx pod is non-isolated
-$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.0.7
+$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.1.5
 HTTP/1.1 200 OK
 Server: nginx/1.27.3
 Date: Fri, 03 Jan 2025 20:47:40 GMT
@@ -117,20 +119,38 @@ Connection: keep-alive
 ETag: "6745ef54-267"
 Accept-Ranges: bytes
 
-$ kubectl apply -f networking/np-networkpolicy.yml
+$ kubectl apply -f networking/np-default-nginx.yml
 $ kubectl get netpol -A 
 NAMESPACE   NAME               POD-SELECTOR   AGE
-np-test     my-networkpolicy   app=nginx      2m51s
+np-test     np-default-nginx   app=nginx      8s
 
 # the np-nginx pod is isolated, curl is not working
-$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.0.7
+$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.1.5
 command terminated with exit code 7
 
 # modify the network policy to all ingress traffic from any pod from namespace with `team=np-test` label
-$ kubectl apply -f networking/np-networkpolicy.yml
+$ kubectl apply -f networking/np-allow-from-namespace-wrong-port-nginx.yml
 
-# the curl works again
-$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.0.7
+$ kubectl get netpol -A
+NAMESPACE   NAME                                       POD-SELECTOR   AGE
+np-test     np-allow-from-namespace-wrong-port-nginx   app=nginx      3s
+np-test     np-default-nginx                           app=nginx      8m16s
+
+# curl does not work, only 8080 port is allowed
+$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.1.5
+command terminated with exit code 7
+
+# allow all ports 
+$ kubectl apply -f networking/np-allow-from-namespace-nginx.yml
+
+$ kubectl get netpol -A
+NAMESPACE   NAME                                       POD-SELECTOR   AGE
+np-test     np-allow-from-namespace-nginx              app=nginx      6s
+np-test     np-allow-from-namespace-wrong-port-nginx   app=nginx      111s
+np-test     np-default-nginx                           app=nginx      10m
+
+# curl works again
+$ kubectl exec np-busybox -n np-test -- curl -s -I 10.42.1.5
 HTTP/1.1 200 OK
 Server: nginx/1.27.3
 Date: Fri, 03 Jan 2025 20:56:25 GMT
@@ -140,4 +160,16 @@ Last-Modified: Tue, 26 Nov 2024 15:55:00 GMT
 Connection: keep-alive
 ETag: "6745ef54-267"
 Accept-Ranges: bytes
+
+# no connection from the busybox from the default namespace
+$ kubectl exec np-busybox-default -- curl -s -I 10.42.1.5
+
+# or logic
+# Rule 1: Allow traffic from any pod in a Namespace labeled kubernetes.io/metadata.name: np-test
+# Rule 2: Allow traffic from any pod labeled client: busybox in the same namespace where the policy is applied (default).
+$ kubectl apply -f networking/np-allow-from-namespace-or-label-nginx.yml
+# works again
+$ kubectl exec np-busybox-default -- curl -s -I 10.42.1.5
+
 ```
+

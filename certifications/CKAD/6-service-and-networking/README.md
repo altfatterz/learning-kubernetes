@@ -3,9 +3,17 @@
 https://kubernetes.io/docs/concepts/services-networking/service/
 
 Types:
-- NodePort
-- ClusterIP
-- LoadBalancer
+- 
+- `ClusterIP` - Virtual IP is created in the cluster
+  - the default type, (`type: ClusterIP`) 
+  - if `.spec.clusterIP: none` - then no IP address is assigned - headless service --> https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+- `NodePort` - mapping a `port on the node` to a `port on the pod` 
+  - (`nodePort` (30000-32767) ---> `port` (Service) ---> `targetPort` (Pod))
+  - Mandatory is only the `port` - the `targetPort` will be same as `port`, `nodePort` will be a random free value within the range
+  - `ports` is a list so many ports can be specified 
+  - with `selector` and using `labels` we link the service to the pod
+  - a `NodePort` type service is also a `ClusterIp` service
+- `LoadBalancer` - used in cloud provider
 
 ```bash
 $ k3d cluster create k8s-cluster -p "8081:80@loadbalancer" -p "8082:30080@agent:0" --agents 2
