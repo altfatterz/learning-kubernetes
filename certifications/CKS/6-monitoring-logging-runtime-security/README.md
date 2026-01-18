@@ -15,8 +15,6 @@ volumeMounts:
     readOnly: true
 ```
 
-
-
 ```bash
 # create k8s cluster
 $ k3d cluster create
@@ -60,6 +58,11 @@ sh: 1: cannot create /mnt/volume1/foo.txt: Read-only file system
 # this worked since the volume was not mounted as readonly
 # echo foo > /mnt/path2/foo.txt
 ```
+
+### Kubernetes Auditing - https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/
+
+
+
 
 
 
