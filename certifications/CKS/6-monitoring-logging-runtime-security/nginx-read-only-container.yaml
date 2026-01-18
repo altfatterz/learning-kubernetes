@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-read-only-container
+spec:
+  containers:
+    - image: nginx
+      name: nginx-read-only-container
+      securityContext:
+        readOnlyRootFilesystem: true

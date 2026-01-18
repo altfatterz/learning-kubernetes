@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-read-only-container4
+spec:
+  containers:
+    - image: nginx
+      name: nginx-read-only-container4
+      volumeMounts:
+        - mountPath: /mnt/path1
+          name: volume
+          readOnly: true
+        - mountPath: /mnt/path2
+          name: volume
+  volumes:
+    - name: volume
+      emptyDir: {}
