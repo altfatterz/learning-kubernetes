@@ -192,29 +192,9 @@ example: use the `ImagePolicyWebhook` to deny using the `latest` tag
 - [kubesec](https://kubesec.io/)
  - https://github.com/controlplaneio/kubesec
  - static analysis of manifest files before it is pushed to the cluster
+ - returns a score along with details with issues
 
 ```bash
-# install krew the plugin manager for kubectl
-# https://krew.sigs.k8s.io/docs/user-guide/setup/install/#bash
-
-$ kubectl krew version
-OPTION            VALUE
-GitTag            v0.4.5
-
-$ kubectl krew list
-krew
-
-# install kubesec as a plugin using Krew
-$ kubectl krew install kubesec-scan
-$ kubectl krew list
-PLUGIN        VERSION
-krew          v0.4.5
-kubesec-scan  v1.1.0
-
-$ kubectl kubesec-scan version
-# a bit old version
-2.0.0
-
 # install instead with binary
 $ curl -LO https://github.com/controlplaneio/kubesec/releases/download/v2.14.2/kubesec_darwin_arm64.tar.gz
 $ tar -xvf kubesec_darwin_arm64.tar.gz
@@ -223,9 +203,6 @@ $ kubesec version
 version 2.14.2
 git commit bb804de5ed6f311a7d281c3d119fe85e77e75a13
 build date 2024-11-22T16:34:22Z
-
-# check kubesec-demo-result.json
-$ kubectl kubesec-scan deploynent nginx-deployment.yaml
 
 # Validate Kubernetes resource security policies
 $ kubesec
@@ -242,15 +219,16 @@ Available Commands:
   version     Prints kubesec version
 ```
 
-- `krew` plugins for security engineers: https://www.sysdig.com/blog/top-15-kubectl-plugins-for-security-engineers
-
 ```bash
 $ cd kubesec
 $ kubesec scan kubesec-demo.yaml
 ```
 
-- [trivy](https://trivy.dev/) - CVE scanner
+- [trivy](https://trivy.dev/) - All-in-one security tool, most popular
 - CVE (Common Vulnerabilities and Exposures) https://www.cve.org/
+- Best practices
+  - integrate scanning into your CI/CD pipeline
+  - have your own repository with pre-scanned images ready to go
 
 ```bash
 $ brew install trivy
