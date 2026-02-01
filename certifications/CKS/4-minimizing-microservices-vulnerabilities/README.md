@@ -100,7 +100,7 @@ webhooks:
   - Redhat initiated it, open source development model
   - commercial offering: `Red Hat Advanced Cluster Security for Kubernetes` (RHACS)
 
-Stackrox admission controller webhook demo: https://github.com/stackrox/admission-controller-webhook-demo
+- Stackrox admission controller webhook demo: https://github.com/stackrox/admission-controller-webhook-demo
 
 ## PodSecurityPolicy - deprecated and removed in Kubernetes 1.25
 
