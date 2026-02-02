@@ -11,14 +11,23 @@ Create kubeadm cluster using [`multipass`](https://canonical.com/multipass)
 ```bash
 # cilium installation in a k3d managed cluster will not work
 $ multipass list
+# classic dual-CNI "Split-Brain" state
+
+- 172.16.x.x: This is the typical default range for Calico.
+- 10.0.x.x: This is the typical default range for Cilium.
+
+TODO: full migration to Cilium
+
 Name                    State             IPv4             Image
 k8s-master              Running           192.168.64.16    Ubuntu 24.04 LTS
                                           172.16.235.192
                                           10.0.0.4
 k8s-worker-1            Running           192.168.64.17    Ubuntu 24.04 LTS
                                           172.16.230.0
+                                          10.0.1.136
 k8s-worker-2            Running           192.168.64.18    Ubuntu 24.04 LTS
                                           172.16.140.0
+                                          10.0.2.123
 $ export KUBECONFIG=~/.kube/mp-config
 $ kubectl get nodes
 NAME           STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
