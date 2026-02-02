@@ -1,5 +1,9 @@
 # Cilium
 
+- Cilium can operate alongside kube-proxy or replace it. Since kube-proxy pods are present, Cilium will default to using kube-proxy mode.
+- Cilium can be installed as the CNI plugin (before install the nodes are NOT_READY state)
+- 
+
 ### K8S Cluster 
 
 Create kubeadm cluster using [`multipass`](https://canonical.com/multipass)
@@ -10,19 +14,22 @@ $ multipass list
 Name                    State             IPv4             Image
 k8s-master              Running           192.168.64.16    Ubuntu 24.04 LTS
                                           172.16.235.192
+                                          10.0.0.4
 k8s-worker-1            Running           192.168.64.17    Ubuntu 24.04 LTS
                                           172.16.230.0
 k8s-worker-2            Running           192.168.64.18    Ubuntu 24.04 LTS
                                           172.16.140.0
 $ export KUBECONFIG=~/.kube/mp-config
 $ kubectl get nodes
-NAME           STATUS   ROLES           AGE     VERSION
-k8s-master     Ready    control-plane   6m10s   v1.34.3
-k8s-worker-1   Ready    <none>          3m44s   v1.34.3
-k8s-worker-2   Ready    <none>          3m39s   v1.34.3
+NAME           STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-master     Ready    control-plane   38d   v1.34.3   192.168.64.16   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+k8s-worker-1   Ready    <none>          38d   v1.34.3   192.168.64.17   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+k8s-worker-2   Ready    <none>          38d   v1.34.3   192.168.64.18   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
 ```
 
 ### Install Cilium CLI
+
+- Since under the hood is uses helm, we prefer helm instead
 
 ```bash
 $ brew install cilium-cli 
@@ -67,16 +74,21 @@ Helm chart version:    1.18.5
 Image versions         cilium             quay.io/cilium/cilium:v1.18.5@sha256:2c92fb05962a346eaf0ce11b912ba434dc10bd54b9989e970416681f4a069628: 3
                        cilium-envoy       quay.io/cilium/cilium-envoy:v1.34.12-1765374555-6a93b0bbba8d6dc75b651cbafeedb062b2997716@sha256:3108521821c6922695ff1f6ef24b09026c94b195283f8bfbfc0fa49356a156e1: 3
                        cilium-operator    quay.io/cilium/operator-generic:v1.18.5@sha256:36c3f6f14c8ced7f45b40b0a927639894b44269dd653f9528e7a0dc363a4eb99: 1
+
+# helm list
+$ helm list -A
+NAME  	NAMESPACE  	REVISION	UPDATED                             	STATUS  	CHART        	APP VERSION
+cilium	kube-system	2       	2025-12-25 17:16:39.015087 +0100 CET	deployed	cilium-1.18.3	1.18.3                 
                        
 # get the running cilium pods
 $ kubectl get pods -A | grep cilium
-kube-system   cilium-27f9p                              1/1     Running   0          60s
-kube-system   cilium-cdzc7                              1/1     Running   0          60s
-kube-system   cilium-envoy-9pgjs                        1/1     Running   0          60s
-kube-system   cilium-envoy-k4866                        1/1     Running   0          60s
-kube-system   cilium-envoy-xlrrf                        1/1     Running   0          60s
-kube-system   cilium-operator-77c48d95b4-rxjm6          1/1     Running   0          60s
-kube-system   cilium-t694c                              1/1     Running   0          60s
+kube-system   cilium-474nk                              1/1     Running   1 (3m4s ago)    38d
+kube-system   cilium-envoy-5622g                        1/1     Running   1 (2m27s ago)   38d
+kube-system   cilium-envoy-htvpb                        1/1     Running   1 (3m4s ago)    38d
+kube-system   cilium-envoy-lv4r8                        1/1     Running   1 (2m31s ago)   38d
+kube-system   cilium-nlnrt                              1/1     Running   1 (2m31s ago)   38d
+kube-system   cilium-operator-68bd8cc456-dz4bq          1/1     Running   1 (2m27s ago)   38d
+kube-system   cilium-skv9g                              1/1     Running   1 (2m27s ago)   38d
 ```
 
 ### WireGuard
@@ -94,6 +106,12 @@ Encryption:              Disabled
 
 # enable and set wireguard encryption after installation 
 $ cilium upgrade --set encryption.enabled=true --set encryption.type=wireguard
+
+# verify that in config cilium-config is changed
+$ kubectl describe cm cilium-config -n kube-system  | grep -i wireguard -A 3
+enable-wireguard:
+----
+true
 
 $ kubectl exec -it ds/cilium -n kube-system -- bash 
 root@k8s-master:/home/cilium# cilium-dbg status | grep Encryption
@@ -118,5 +136,94 @@ $ sudo apt-get -y install tcpdump
 $ sudo tcpdump -n -i cilium_wg0 -X
 
 ```
+
+### Install with Helm - https://docs.cilium.io/en/stable/installation/k8s-install-helm/
+
+```bash
+$ helm repo add cilium https://helm.cilium.io
+# show values of the chart which you can change
+$ helm show values cilium/cilium > values-original.yaml
+
+# install cilium in the kube-system namespace
+$ helm install cilium cilium/cilium --namespace kube-system -f values.yaml
+
+# show deployed chart
+$ helm list -n kube-system
+NAME  	NAMESPACE  	REVISION	UPDATED                            	STATUS  	CHART        	APP VERSION
+cilium	kube-system	1       	2026-02-02 10:52:04.66569 +0100 CET	deployed	cilium-1.18.6	1.18.6
+
+# verify cilium pods of cilium daemonset are running  
+$ kubectl get pods -n kube-system -l k8s-app=cilium
+
+# get the resources generated by the helm chart
+$ helm get manifest cilium -n kube-system
+
+# configmap
+$ kubectl get cm -n kube-system | grep cilium
+cilium-config                                          146    38d
+cilium-envoy-config                                    1      38d
+
+# operator deployment
+$ kubectl get deploy -n kube-system | grep cilium
+cilium-operator           1/1     1            1           38d
+
+# secrets
+$ kubectl get secret -n kube-system
+NAME                           TYPE                 DATA   AGE
+cilium-ca                      Opaque               2      38d
+hubble-server-certs            kubernetes.io/tls    3      38d
+...
+
+# seviceaccounts
+$ kubectl get sa -n kube-system | grep cilium
+cilium                                        0         38d
+cilium-envoy                                  0         38d
+cilium-operator                               0         38d
+
+# roles
+$ kubectl get roles -n kube-system | grep -i cilium
+cilium-config-agent                              2025-12-25T16:15:12Z
+
+# clusterroles
+$ kubectl get clusteroles | grep -i cilium
+cilium                                                                 2025-12-25T16:15:12Z
+cilium-operator                                                        2025-12-25T16:15:12Z
+
+# check the permissions in the role 
+$ kubectl describe clusterrole cilium
+
+# get the clusterrolebindings
+$ kubectl get clusterrolebindings | grep cilium
+cilium                                                          ClusterRole/cilium                                                                 38d
+cilium-operator                                                 ClusterRole/cilium-operator                                                        38d
+
+# get the crds
+$ kubectl get crds | grep cilium
+ciliumcidrgroups.cilium.io                            2025-12-25T16:15:36Z
+ciliumclusterwidenetworkpolicies.cilium.io            2025-12-25T16:15:35Z
+ciliumendpoints.cilium.io                             2025-12-25T16:15:33Z
+ciliumidentities.cilium.io                            2025-12-25T16:15:31Z
+ciliuml2announcementpolicies.cilium.io                2025-12-25T16:15:38Z
+ciliumloadbalancerippools.cilium.io                   2025-12-25T16:15:37Z
+ciliumnetworkpolicies.cilium.io                       2025-12-25T16:15:34Z
+ciliumnodeconfigs.cilium.io                           2025-12-25T16:15:39Z
+ciliumnodes.cilium.io                                 2025-12-25T16:15:30Z
+ciliumpodippools.cilium.io                            2025-12-25T16:15:32Z
+
+# upgrade
+$ helm upgrade cilium cilium/cilium -n kube-system -f values.yaml  
+```
+
+### Hubble UI
+
+```bash
+$ kubectl port-forward svc/hubble-ui 8080:80 -n kube-system
+
+# access 
+$ open http://localhost:8080
+```
+
+
+
 
 
