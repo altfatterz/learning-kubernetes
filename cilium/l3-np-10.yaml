@@ -1,0 +1,18 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l3-np-10"
+  namespace: dev
+spec:
+  # allow to connect from app1 pod in dev namespace to external IP 20.1.1.1
+  # allow to connect from app1 pod in dev namespace to CIDR prefix 10.0.0.0/8 but not 10.96.0.0/12
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toCIDR:
+        - 20.1.1.1/32
+    - toCIDRSet:
+        - cidr: 10.0.0.0/8
+          except:
+            - 10.96.0.0/12

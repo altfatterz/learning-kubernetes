@@ -1,0 +1,14 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l3-np-6"
+  namespace: dev
+spec:
+  # allow to go from app1 pod in dev namespace to app2 pod in dev namespace
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app: app2

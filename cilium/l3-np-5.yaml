@@ -1,0 +1,12 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l3-np-5"
+  namespace: dev
+spec:
+  # allow to connect to app1 pod in dev namespace from nobody
+  endpointSelector:
+    matchLabels:
+      app: app1
+  ingress:
+    - {}

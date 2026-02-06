@@ -288,4 +288,3 @@ $ kubectl exec cilium-7wflr -n kube-system -- cilium identity list
 ```
 
 
-

@@ -1,0 +1,16 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l3-np-7"
+  namespace: dev
+spec:
+  # allow to go from app1 pod in dev namespace to app2 pod in prod namespace
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app: app2
+            # get this value from kubectl describe cep <app2-endpoint-prod> -n prod
+            k8s:io.kubernetes.pod.namespace: prod
