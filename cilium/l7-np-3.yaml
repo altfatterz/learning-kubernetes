@@ -1,0 +1,14 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l7-np-3"
+  namespace: dev
+spec:
+  # allow to connect to app4 pod in dev namespace only from app2 pod from dev namespace
+  endpointSelector:
+    matchLabels:
+      app: app4
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: app2

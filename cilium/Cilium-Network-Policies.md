@@ -181,3 +181,18 @@ $ kubectl exec -it app1-69b9bd9859-8khft -n dev -- curl 10.0.1.44/orders
 # access denied 
 $ kubectl exec -it app1-69b9bd9859-8khft -n dev -- curl -X POST 10.0.1.44/auth
 ```
+
+
+```bash
+# access the NodePort service through a node, should work
+$ curl 192.168.64.23:30007 
+# apply the ingress network policy
+$ kubectl apply -f l7-np-3.yaml
+# should be blocked
+$ curl 192.168.64.23:30007
+
+# apply with fromEntites changes
+$ kubectl apply -f l7-np-4.yaml
+# works again
+$ curl 192.168.64.23:30007
+```
