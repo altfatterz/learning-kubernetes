@@ -89,7 +89,11 @@ $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 $ kubectl get nodes
 NAME         STATUS     ROLES           AGE   VERSION
 k8s-master   NotReady   control-plane   51s   v1.34.3
- 
+```
+
+### Install a CNI plugin
+
+```bash 
 # install a pod network, here we chose calico
 $ kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 # Check pods in the kube-system namespace:

@@ -2,11 +2,12 @@
 
 - Cilium can operate alongside kube-proxy or replace it. Since kube-proxy pods are present, Cilium will default to using kube-proxy mode.
 - Cilium can be installed as the CNI plugin (before install the nodes are NOT_READY state)
-- 
 
 ### K8S Cluster 
 
 Create kubeadm cluster using [`multipass`](https://canonical.com/multipass)
+
+Follow the `local-kubernetes/kubeadm-cluster` setup to install a kubeadm cluster without installing a CNI plugin.
 
 ```bash
 # cilium installation in a k3d managed cluster will not work
@@ -19,21 +20,16 @@ $ multipass list
 TODO: full migration to Cilium
 
 Name                    State             IPv4             Image
-k8s-master              Running           192.168.64.16    Ubuntu 24.04 LTS
-                                          172.16.235.192
-                                          10.0.0.4
-k8s-worker-1            Running           192.168.64.17    Ubuntu 24.04 LTS
-                                          172.16.230.0
-                                          10.0.1.136
-k8s-worker-2            Running           192.168.64.18    Ubuntu 24.04 LTS
-                                          172.16.140.0
-                                          10.0.2.123
+k8s-master              Running           192.168.64.20    Ubuntu 24.04 LTS
+k8s-worker-1            Running           192.168.64.23    Ubuntu 24.04 LTS
+k8s-worker-2            Running           192.168.64.22    Ubuntu 24.04 LTS
+
 $ export KUBECONFIG=~/.kube/mp-config
 $ kubectl get nodes
-NAME           STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
-k8s-master     Ready    control-plane   38d   v1.34.3   192.168.64.16   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
-k8s-worker-1   Ready    <none>          38d   v1.34.3   192.168.64.17   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
-k8s-worker-2   Ready    <none>          38d   v1.34.3   192.168.64.18   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+NAME           STATUS     ROLES           AGE     VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-master     NotReady   control-plane   3m57s   v1.34.3   192.168.64.20   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+k8s-worker-1   NotReady   <none>          2m56s   v1.34.3   192.168.64.23   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+k8s-worker-2   NotReady   <none>          2m9s    v1.34.3   192.168.64.22   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
 ```
 
 ### Install Cilium CLI
@@ -223,6 +219,44 @@ ciliumpodippools.cilium.io                            2025-12-25T16:15:32Z
 $ helm upgrade cilium cilium/cilium -n kube-system -f values.yaml  
 ```
 
+### Cilium Node vs Kubernetes Node
+
+```bash
+$ kubectl get nodes -o wide
+NAME           STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-master     Ready    control-plane   22h   v1.34.3   192.168.64.20   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+k8s-worker-1   Ready    <none>          22h   v1.34.3   192.168.64.23   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+k8s-worker-2   Ready    <none>          22h   v1.34.3   192.168.64.22   <none>        Ubuntu 24.04.3 LTS   6.8.0-90-generic   containerd://1.7.28
+$ kubectl k get cn -o wide
+NAME           CILIUMINTERNALIP   INTERNALIP      AGE
+k8s-master     10.0.0.63          192.168.64.20   8h
+k8s-worker-1   10.0.2.128         192.168.64.23   8h
+k8s-worker-2   10.0.1.128         192.168.64.22   8h
+$ mp list
+➜  ~ mp list
+Name                    State             IPv4             Image
+k8s-master              Running           192.168.64.20    Ubuntu 24.04 LTS
+                                          10.0.0.63
+k8s-worker-1            Running           192.168.64.23    Ubuntu 24.04 LTS
+                                          10.0.2.128
+k8s-worker-2            Running           192.168.64.22    Ubuntu 24.04 LTS
+                                          10.0.1.128
+$ kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium-agent
+NAME           READY   STATUS    RESTARTS      AGE
+cilium-7wflr   1/1     Running   1 (10m ago)   9h
+cilium-mdhhz   1/1     Running   1 (10m ago)   9h
+cilium-pt9zh   1/1     Running   1 (10m ago)   9h
+                                          
+# what is a cidr range for that specific node and the assigned ip addresses                                           
+$ kubectl exec cilium-7wflr -n kube-system -- cilium-dbg status --all-addresses
+
+# check which cidr is allocated for each node
+$ kubectl exec cilium-7wflr -n kube-system -- cilium debuginfo | grep IPAM
+
+# check is kube-proxy used or not
+$ kubectl exec ds/cilium -n kube-system -- cilium-dbg status | grep -i kubeproxyreplacement                                           
+```
+
 ### Hubble UI
 
 ```bash
@@ -232,7 +266,26 @@ $ kubectl port-forward svc/hubble-ui 8080:80 -n kube-system
 $ open http://localhost:8080
 ```
 
+### Cilium Terminology
 
+- `Cilium Endpoint` 
+  - every pod will become and `Cilium Endpoint`
+  - Cilium will give each pod an id to identify it
+
+```bash
+# view the endpoints on a given node
+$ kubectl exec cilium-7wflr -n kube-system -- cilium endpoint list
+```
+
+- `Cilium identities`
+  - decouple security from ip addresses
+  - it is just based on labels
+  - policies will be based on identities
+
+```bash
+# the list of identities on a given node
+$ kubectl exec cilium-7wflr -n kube-system -- cilium identity list
+```
 
 
 
