@@ -1,0 +1,19 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l4-np-3"
+  namespace: dev
+spec:
+  # allow to connect from app1 pod to app2 pod in dev namespace but only on port 80
+  # warning this will block dns
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app: app2
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP

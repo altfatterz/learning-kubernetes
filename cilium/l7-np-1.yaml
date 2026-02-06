@@ -1,0 +1,31 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l7-np-1"
+  namespace: dev
+spec:
+  # allow to connect from app1 pod to app2 pod in dev namespace but only on port 80
+  # allow dns queries limited to only "*.google.com"
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              # restrict DNS resolution - L7 functionality
+              - matchPattern: "*.google.com"
+    - toEndpoints:
+        - matchLabels:
+            app: app2
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP

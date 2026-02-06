@@ -1,0 +1,15 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l4-np-1"
+  namespace: dev
+spec:
+  # allow to connect from app1 pod to any pod in any namespace on port 80
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP

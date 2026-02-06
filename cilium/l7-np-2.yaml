@@ -1,0 +1,22 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "l7-np-1"
+  namespace: dev
+spec:
+  # allow to connect from app1 pod to app2 pod in dev namespace but only on port 80 with GET method on /auth path
+  endpointSelector:
+    matchLabels:
+      app: app1
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app: app2
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+          rules:
+            http:
+              - method: "GET"
+                path: /auth

@@ -50,6 +50,8 @@ app1-69b9bd9859-8khft:~# nc -v 10.0.2.100 80
 
 ## Create Network Policies
 
+## L3 Network Policies
+
 ### allow to connect to app1 in dev namespace only from app2 in dev namespace
 
 ```bash
@@ -130,3 +132,52 @@ $ kubectl exec -it app2-79dcc98d57-r8b7c -n prod -- nc -v 10.0.2.174 80
 nc: connect to 10.0.2.174 port 80 (tcp) failed: Connection refused
 ```
 
+### L4 Network Policies
+
+```bash
+# allow to connect from app1 pod to any pod in any namespace on port 80
+$ kubectl apply -f l4-np-1.yaml
+
+# allow to connect from app1 pod to any pod in any namespace on port from 80 to 83
+$ kubectl apply -f l4-np-2.yaml
+
+# allow to connect from app1 pod to app2 pod in dev namespace but only on port 80
+# warning this will block dns, it will block anything that you don't allow
+$ kubectl apply -f l4-np-3.yaml
+
+# blocked
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- nslookup google.com
+# here works since cilium network policy is not applied here
+$ kubectl exec -it app2-79dcc98d57-cjld6 -n dev -- nslookup google.com
+
+# same as prevous but allow dns lookup
+$ kubectl apply -f l4-np-4.yaml
+# now dns lookup works
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- nslookup google.com
+````
+
+
+### L7 Network Policies
+
+```bash
+# limit the domain for dns lookups - which are l7 features
+$ kubectl apply -f l7-np-1.yaml
+# dns lookup works for mail.google.com
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- nslookup mail.google.com.
+# fails for amazon.com.
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- nslookup amazon.com.
+```
+
+```bash
+# limit to method GET with /auth path
+$ kubectl apply -f l7-np-2.yaml
+
+# run a packet capture
+$ kubectl exec -it app2-79dcc98d57-cjld6 -n dev -- tcpdump -i eth0 -nn 
+# execute a curl to app2 - worked - check the capture packets
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- curl 10.0.1.44/auth
+# access denied
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- curl 10.0.1.44/orders
+# access denied 
+$ kubectl exec -it app1-69b9bd9859-8khft -n dev -- curl -X POST 10.0.1.44/auth
+```
