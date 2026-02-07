@@ -196,3 +196,76 @@ $ kubectl apply -f l7-np-4.yaml
 # works again
 $ curl 192.168.64.23:30007
 ```
+
+### Policy Audit Mode
+
+```bash
+$ kubectl get pods -o wide --show-labels -n dev
+app1-69b9bd9859-8khft   1/1     Running   1 (4m ago)      27h   10.0.2.194   k8s-worker-1   <none>           <none>            app=app1,pod-template-hash=69b9bd9859
+app2-79dcc98d57-cjld6   1/1     Running   1 (3m56s ago)   27h   10.0.1.170   k8s-worker-2   <none>           <none>            app=app2,pod-template-hash=79dcc98d57
+app3-696b44ff-fxzs5     1/1     Running   1 (3m56s ago)   27h   10.0.1.179   k8s-worker-2   <none>           <none>            app=app3,pod-template-hash=696b44ff
+app4-76857dc48b-w6j52   1/1     Running   1 (4m ago)      16h   10.0.2.73    k8s-worker-1   <none>           <none>            app=app4,pod-template-hash=76857dc48b
+
+# show the cilium agents
+$ kubectl get pods -A -o wide -l app.kubernetes.io/name=cilium-agent
+NAMESPACE     NAME           READY   STATUS    RESTARTS        AGE    IP              NODE           NOMINATED NODE   READINESS GATES
+kube-system   cilium-7wflr   1/1     Running   3 (6m40s ago)   3d1h   192.168.64.23   k8s-worker-1   <none>           <none>
+kube-system   cilium-mdhhz   1/1     Running   3 (6m44s ago)   3d1h   192.168.64.20   k8s-master     <none>           <none>
+kube-system   cilium-pt9zh   1/1     Running   3 (6m36s ago)   3d1h   192.168.64.22   k8s-worker-2   <none>           <none>
+
+# allow to connect only from app2 in dev namespace to connect to app1 in dev namespace 
+$ kubectl apply -f l3-np-1.yaml
+
+# allowed
+$ kubectl exec app2-79dcc98d57-cjld6 -n dev -- nc -v 10.0.2.194 80
+# not allowed
+$ kubectl exec app3-696b44ff-fxzs5 -n dev -- nc -v 10.0.2.194 80
+
+# verify audit log on the k8s-worker-1 worker node
+$ kubectl exec cilium-7wflr -n kube-system -- hubble observe flows -t policy-verdict -f | grep dev
+# when allowed
+Feb  7 12:39:23.751: dev/app2-79dcc98d57-cjld6:42516 (ID:30579) -> dev/app1-69b9bd9859-8khft:80 (ID:53870) policy-verdict:L3-Only INGRESS ALLOWED (TCP Flags: SYN)
+# when denied
+Feb  7 12:39:54.844: dev/app3-696b44ff-fxzs5:38872 (ID:62624) <> dev/app1-69b9bd9859-8khft:80 (ID:53870) policy-verdict:none INGRESS DENIED (TCP Flags: SYN)
+
+# change audit mode for the 53870 identity we need to find the endpoint id
+$ kubectl get cep -n dev
+app1-69b9bd9859-8khft   53870               ready            10.0.2.194   fd00::2f5
+app2-79dcc98d57-cjld6   30579               ready            10.0.1.170   fd00::1e7
+app3-696b44ff-fxzs5     62624               ready            10.0.1.179   fd00::178
+app4-76857dc48b-w6j52   6746                ready            10.0.2.73    fd00::236
+# get the endpoint id
+$ kubectl get cep app1-69b9bd9859-8khft -n dev -o jsonpath='{.status.id}'
+2666
+# check the endpoint configuration
+$ kubectl exec cilium-7wflr -n kube-system -- cilium-dbg endpoint config 2666
+ConntrackAccounting               : Disabled
+Debug                             : Disabled
+DebugLB                           : Disabled
+DebugPolicy                       : Disabled
+DropNotification                  : Enabled
+MonitorAggregationLevel           : Medium
+PolicyAccounting                  : Enabled
+PolicyAuditMode                   : Disabled
+PolicyVerdictNotification         : Enabled
+SourceIPVerification              : Enabled
+TraceNotification                 : Enabled
+
+# change the PolicyAuditMode to Enabled
+$ kubectl exec cilium-7wflr -n kube-system -- cilium-dbg endpoint config 2666 PolicyAuditMode=Enabled
+
+# allowed
+$ kubectl exec app2-79dcc98d57-cjld6 -n dev -- nc -v 10.0.2.194 80
+# allowed even if we have Cilium Network Policy but is Audited see below  
+$ kubectl exec app3-696b44ff-fxzs5 -n dev -- nc -v 10.0.2.194 80
+
+# verify audit log on the k8s-worker-1 worker node
+$ kubectl exec cilium-7wflr -n kube-system -- hubble observe flows -t policy-verdict -f | grep dev
+# when allowed
+Feb  7 13:04:34.215: dev/app2-79dcc98d57-cjld6:57798 (ID:30579) -> dev/app1-69b9bd9859-8khft:80 (ID:53870) policy-verdict:L3-Only INGRESS ALLOWED (TCP Flags: SYN)
+# when suppose to be denied but the PolicyAuditMode is set to Enabled
+Feb  7 13:04:54.533: dev/app3-696b44ff-fxzs5:55472 (ID:62624) -> dev/app1-69b9bd9859-8khft:80 (ID:53870) policy-verdict:none INGRESS AUDITED (TCP Flags: SYN)
+
+# change back the PolicyAuditMode to Disabled
+$ kubectl exec cilium-7wflr -n kube-system -- cilium-dbg endpoint config 2666 PolicyAuditMode=Disabled
+```
