@@ -96,52 +96,6 @@ kube-system   cilium-operator-68bd8cc456-dz4bq          1/1     Running   1 (2m2
 kube-system   cilium-skv9g                              1/1     Running   1 (2m27s ago)   38d
 ```
 
-### WireGuard
-
-- is a modern, high-performance communication protocol used to create secure Virtual Private Networks (VPNs)
-- It was designed to replace older, more complex protocols like `IPsec` and `OpenVPN`
-
-### Enable WireGuard Encryption
-
-```bash
-# check encryption status
-$ kubectl exec -it ds/cilium -n kube-system -- bash 
-root@k8s-master:/home/cilium# cilium-dbg status | grep Encryption
-Encryption:              Disabled
-
-# enable and set wireguard encryption after installation 
-$ cilium upgrade --set encryption.enabled=true --set encryption.type=wireguard
-
-# verify that in config cilium-config is changed
-$ kubectl describe cm cilium-config -n kube-system  | grep -i wireguard -A 3
-enable-wireguard:
-----
-true
-
-$ kubectl exec -it ds/cilium -n kube-system -- bash 
-root@k8s-master:/home/cilium# cilium-dbg status | grep Encryption
-Encryption:              Wireguard       [NodeEncryption: Disabled, cilium_wg0 (Pubkey: +CS14oPa9o/IUhS6IPh4hxbeZoBr5dpghpCrqmRfASg=, Port: 51871, Peers: 2)]
-
-```
-
-### Test encryption
-
-```bash
-# test curlpod and nginx and inspect communication
-$ kubectl apply -f test-encryption.yaml
-
-# install tcpdump on the node  
-$ apt-get update
-$ apt-get -y install tcpdump
-
-# Check that traffic is sent via the cilium_wg0 tunnel device:
-$ multipass shell k8s-master
-$ sudo apt-get update
-$ sudo apt-get -y install tcpdump
-$ sudo tcpdump -n -i cilium_wg0 -X
-
-```
-
 ### Install with Helm - https://docs.cilium.io/en/stable/installation/k8s-install-helm/
 
 ```bash

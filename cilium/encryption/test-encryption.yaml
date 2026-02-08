@@ -1,15 +1,22 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  labels:
-    app: nginx
   name: nginx
 spec:
-  containers:
-    - image: nginx
-      name: nginx
-      ports:
-        - containerPort: 80
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          ports:
+            - containerPort: 80
 ---
 apiVersion: v1
 kind: Service
@@ -33,7 +40,7 @@ metadata:
   name: curl-pod
 spec:
   containers:
-    - name: curl
-      image: curlimages/curl
+    - name: netshoot
+      image: nicolaka/netshoot
       # This keeps the container running indefinitely
       command: ["sleep", "infinity"]
