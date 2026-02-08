@@ -1,0 +1,16 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "server-ingress-policy"
+spec:
+  # allow to connect to server pod default namespace from everywhere on port 80
+  endpointSelector:
+    matchLabels:
+      app: server
+  ingress:
+    - toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+      authentication:
+        mode: required

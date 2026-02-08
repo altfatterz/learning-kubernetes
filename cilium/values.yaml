@@ -8,6 +8,25 @@ ipv6:
   # -- Enable IPv6 support.
   enabled: true
 
+authentication:
+  enabled: true
+  mutual:
+    spire:
+      # -- Enable SPIRE integration (beta)
+      enabled: true
+      install:
+        # -- Enable SPIRE installation.
+        # This will only take effect only if authentication.mutual.spire.enabled is true
+        enabled: true
+        server:
+          dataStorage:
+            # Switch from PVC to emptyDir (Fixes the Pending/Unbound PVC error)
+            enabled: false
+          # Set permissions (Fixes the "Permission Denied" socket error)
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+
 hubble:
   enabled: true
   ui:
